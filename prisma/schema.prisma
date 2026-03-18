@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Job {
@@ -22,6 +22,8 @@ model Job {
   updatedAt   DateTime @updatedAt
 
   applications Application[]
+
+  @@map("careers_job")
 }
 
 model Application {
@@ -52,6 +54,8 @@ model Application {
   status      String   @default("New")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("careers_application")
 }
 
 model AdminUser {
@@ -60,4 +64,6 @@ model AdminUser {
   password  String
   name      String
   createdAt DateTime @default(now())
+
+  @@map("careers_admin_user")
 }

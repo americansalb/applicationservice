@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Job {
+  id          String   @id @default(uuid())
+  title       String
+  department  String
+  location    String
+  type        String
+  salary      String?
+  description String
+  requirements String
+  benefits    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applications Application[]
+}
+
+model Application {
+  id          String   @id @default(uuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id])
+
+  firstName   String
+  lastName    String
+  email       String
+  phone       String
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+
+  resumeText  String?
+  coverLetter String?
+  linkedIn    String?
+  portfolio   String?
+  yearsExp    String?
+
+  startDate   String?
+  referral    String?
+  legallyAuth String?
+  additionalInfo String?
+
+  status      String   @default("New")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+}

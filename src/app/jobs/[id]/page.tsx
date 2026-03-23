@@ -5,9 +5,14 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function JobDetailPage({ params }: { params: { id: string } }) {
-  const job = await prisma.job.findUnique({
-    where: { id: params.id, isActive: true },
-  });
+  let job;
+  try {
+    job = await prisma.job.findUnique({
+      where: { id: params.id, isActive: true },
+    });
+  } catch (e) {
+    console.error("Failed to fetch job:", e);
+  }
 
   if (!job) notFound();
 

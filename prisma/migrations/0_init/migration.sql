@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "careers_job" (
+CREATE TABLE IF NOT EXISTS "careers_job" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "department" TEXT NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE "careers_job" (
 );
 
 -- CreateTable
-CREATE TABLE "careers_application" (
+CREATE TABLE IF NOT EXISTS "careers_application" (
     "id" TEXT NOT NULL,
     "jobId" TEXT NOT NULL,
     "firstName" TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE "careers_application" (
 );
 
 -- CreateTable
-CREATE TABLE "careers_admin_user" (
+CREATE TABLE IF NOT EXISTS "careers_admin_user" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
@@ -55,8 +55,13 @@ CREATE TABLE "careers_admin_user" (
     CONSTRAINT "careers_admin_user_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "careers_admin_user_email_key" ON "careers_admin_user"("email");
+-- CreateIndex (safe: won't fail if already exists)
+CREATE UNIQUE INDEX IF NOT EXISTS "careers_admin_user_email_key" ON "careers_admin_user"("email");
 
--- AddForeignKey
-ALTER TABLE "careers_application" ADD CONSTRAINT "careers_application_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "careers_job"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- AddForeignKey (wrap in DO block to skip if exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'careers_application_jobId_fkey') THEN
+        ALTER TABLE "careers_application" ADD CONSTRAINT "careers_application_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "careers_job"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;

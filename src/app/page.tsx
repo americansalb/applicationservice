@@ -4,11 +4,16 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const jobs = await prisma.job.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { applications: true } } },
-  });
+  let jobs: Awaited<ReturnType<typeof prisma.job.findMany>> = [];
+  try {
+    jobs = await prisma.job.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { applications: true } } },
+    });
+  } catch (e) {
+    console.error("Failed to fetch jobs:", e);
+  }
 
   const departments = [...new Set(jobs.map((j) => j.department))];
 

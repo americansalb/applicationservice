@@ -1,6 +1,5 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -11,13 +10,7 @@ function createPrismaClient() {
   if (!connectionString) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
-  const pool = new pg.Pool({
-    connectionString,
-    ssl: connectionString.includes("sslmode=")
-      ? { rejectUnauthorized: false }
-      : false,
-  });
-  const adapter = new PrismaPg(pool);
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
 

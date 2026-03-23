@@ -8,12 +8,12 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   // Create admin user
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  const hashedPassword = await bcrypt.hash("Retard$macker1008", 10);
   await prisma.adminUser.upsert({
-    where: { email: "admin@aalb.org" },
-    update: {},
+    where: { email: "contact@aalb.org" },
+    update: { password: hashedPassword },
     create: {
-      email: "admin@aalb.org",
+      email: "contact@aalb.org",
       password: hashedPassword,
       name: "AALB Admin",
     },
@@ -106,7 +106,7 @@ async function main() {
   }
 
   console.log("Database seeded successfully!");
-  console.log("Admin login: admin@aalb.org / admin123");
+  console.log("Admin login: contact@aalb.org");
 }
 
 main()

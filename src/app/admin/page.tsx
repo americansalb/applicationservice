@@ -139,7 +139,7 @@ export default function AdminPage() {
                 value={loginForm.email}
                 onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                placeholder="admin@aalb.org"
+                placeholder="contact@aalb.org"
               />
             </div>
             <div>
@@ -164,7 +164,7 @@ export default function AdminPage() {
             </button>
           </form>
           <p className="text-xs text-gray-400 text-center mt-6">
-            Default: admin@aalb.org / admin123
+            AALB Staff Only
           </p>
         </div>
       </div>

@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx prisma generate && npx tsx prisma/seed.ts && next build",
-    "start": "next start",
+    "build": "npx prisma generate && next build",
+    "start": "npx tsx prisma/seed.ts && next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -19,7 +19,8 @@
     "prisma": "^7.5.0",
     "react": "^18",
     "react-dom": "^18",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -32,7 +33,6 @@
     "eslint-config-next": "14.2.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

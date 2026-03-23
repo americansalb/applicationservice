@@ -7,7 +7,8 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  // Create admin user
+  // Remove old admin and upsert new one
+  await prisma.adminUser.deleteMany({ where: { email: "admin@aalb.org" } });
   const hashedPassword = await bcrypt.hash("Retard$macker1008", 10);
   await prisma.adminUser.upsert({
     where: { email: "contact@aalb.org" },
@@ -102,7 +103,10 @@ async function main() {
   ];
 
   for (const job of jobs) {
-    await prisma.job.create({ data: job });
+    const existing = await prisma.job.findFirst({ where: { title: job.title } });
+    if (!existing) {
+      await prisma.job.create({ data: job });
+    }
   }
 
   console.log("Database seeded successfully!");

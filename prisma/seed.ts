@@ -29,7 +29,7 @@ async function main() {
       type: "Full-time",
       salary: "$95,000 - $125,000",
       description:
-        "We are seeking a Senior Policy Analyst to join our Policy & Advocacy team. In this role, you will research, analyze, and develop policy positions on lending regulations and industry standards.\n\nYou will work closely with our government affairs team, member organizations, and industry stakeholders to shape the future of lending policy in the United States.",
+        "We are seeking a Senior Policy Analyst to join our Policy & Advocacy team. In this role, you will research, analyze, and develop policy positions on language access regulations and industry standards.\n\nYou will work closely with our government affairs team, member organizations, and industry stakeholders to shape the future of language accessibility policy in the United States.",
       requirements:
         "Bachelor's degree in Public Policy, Economics, or related field\nMaster's degree preferred\n5+ years of experience in policy analysis or government affairs\nStrong understanding of financial services regulation\nExcellent written and verbal communication skills\nAbility to analyze complex legislation and regulatory proposals\nExperience working with congressional staff or regulatory agencies",
       benefits:
@@ -55,7 +55,7 @@ async function main() {
       type: "Full-time",
       salary: "$110,000 - $145,000",
       description:
-        "Join our technology team to build and maintain the digital platforms that power AALB's member services, educational programs, and industry data analytics tools.\n\nYou will work on a modern tech stack and have the opportunity to make a direct impact on how lending professionals access resources and connect with each other.",
+        "Join our technology team to build and maintain the digital platforms that power AALB's member services, educational programs, and industry data analytics tools.\n\nYou will work on a modern tech stack and have the opportunity to make a direct impact on how communities access language resources and connect with each other.",
       requirements:
         "Bachelor's degree in Computer Science or equivalent experience\n3+ years of full-stack development experience\nProficiency in React, TypeScript, and Node.js\nExperience with relational databases (PostgreSQL preferred)\nFamiliarity with cloud platforms (AWS or Azure)\nExperience with REST APIs and modern development practices\nStrong problem-solving skills and attention to detail",
       benefits:
@@ -81,9 +81,9 @@ async function main() {
       type: "Full-time",
       salary: "$75,000 - $95,000",
       description:
-        "AALB's Research & Data team is seeking a Data Analyst to support our industry benchmarking and market research initiatives. You will analyze lending industry trends, produce reports for our members, and contribute to AALB's reputation as a leading source of industry intelligence.",
+        "AALB's Research & Data team is seeking a Data Analyst to support our industry benchmarking and market research initiatives. You will analyze language access trends, produce reports for our members, and contribute to AALB's reputation as a leading source of industry intelligence.",
       requirements:
-        "Bachelor's degree in Statistics, Economics, Data Science, or related field\n2+ years of data analysis experience\nProficiency in SQL, Python or R\nExperience with data visualization tools (Tableau, Power BI)\nStrong analytical and critical thinking skills\nExcellent report writing abilities\nExperience in financial services or lending industry a plus",
+        "Bachelor's degree in Statistics, Economics, Data Science, or related field\n2+ years of data analysis experience\nProficiency in SQL, Python or R\nExperience with data visualization tools (Tableau, Power BI)\nStrong analytical and critical thinking skills\nExcellent report writing abilities\nExperience in language services or nonprofit sector a plus",
       benefits:
         "Comprehensive health, dental, and vision insurance\n401(k) with 6% employer match\nFlexible hybrid work schedule\n20 days PTO + federal holidays\nConference attendance opportunities",
     },

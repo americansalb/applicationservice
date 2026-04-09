@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AALB Careers - Join Our Team",
-  description: "Explore career opportunities at American Association of Lending Businesses. Find your next role and apply today.",
+  description: "Explore career opportunities at Americans Against Language Barriers. Find your next role and apply today.",
 };
 
 export default function RootLayout({
@@ -45,7 +45,7 @@ export default function RootLayout({
                 className="h-8 opacity-70"
               />
               <p className="text-sm text-teal-400">
-                &copy; {new Date().getFullYear()} American Association of Lending Businesses
+                &copy; {new Date().getFullYear()} Americans Against Language Barriers
               </p>
             </div>
           </div>

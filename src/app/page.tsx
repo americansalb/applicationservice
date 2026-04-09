@@ -26,8 +26,8 @@ export default async function HomePage() {
             Join Our Team
           </h1>
           <p className="text-lg text-teal-100 max-w-2xl mx-auto mb-8">
-            Help shape the future of lending. We&apos;re looking for talented people
-            who want to make a real impact in the industry.
+            Help shape the future of language accessibility. We&apos;re looking for talented people
+            who want to make a real impact in breaking down language barriers.
           </p>
           {jobs.length > 0 && (
             <a

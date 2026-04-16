@@ -3,88 +3,144 @@ const { readFileSync } = require("fs");
 const { Pool } = require("pg");
 const path = require("path");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const port = process.env.PORT || 3000;
 
-function createPool() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL not set");
-  }
-  // Disable SSL for internal Render connections, enable for external
+function createPool(connectionString) {
+  if (!connectionString) return null;
   const ssl = connectionString.includes("sslmode=")
     ? { rejectUnauthorized: false }
     : false;
   return new Pool({ connectionString, ssl });
 }
 
-async function setup() {
-  const pool = createPool();
+async function setupCareers() {
+  const pool = createPool(process.env.DATABASE_URL);
+  if (!pool) {
+    console.log("[careers] DATABASE_URL not set, skipping");
+    return;
+  }
 
   try {
-    // 1. Test basic connectivity
-    console.log("[setup] Testing database connection...");
-    const connTest = await pool.query("SELECT 1 as ok");
-    console.log("[setup] Database connected:", connTest.rows[0]);
+    console.log("[careers] Connecting...");
+    await pool.query("SELECT 1");
 
-    // 2. Create tables
-    console.log("[setup] Running migration SQL...");
     const migrationSQL = readFileSync(
       path.join(__dirname, "prisma", "migrations", "0_init", "migration.sql"),
       "utf8"
     );
     await pool.query(migrationSQL);
-    console.log("[setup] Tables created/verified.");
 
-    // 3. Verify tables exist
-    const tables = await pool.query(
-      `SELECT tablename FROM pg_tables WHERE tablename LIKE 'careers_%'`
-    );
-    console.log("[setup] Found tables:", tables.rows.map(r => r.tablename));
-
-    // 4. Delete old admin
     await pool.query(
       `DELETE FROM "careers_admin_user" WHERE "email" = 'admin@aalb.org'`
     );
 
-    // 5. Hash password and upsert admin
-    const password = "Retard$macker1008";
-    const hashedPassword = await bcrypt.hash(password, 10);
-    console.log("[setup] Password hashed, upserting admin user...");
-
+    const hashedPassword = await bcrypt.hash("Retard$macker1008", 10);
     await pool.query(
       `INSERT INTO "careers_admin_user" ("id", "email", "password", "name", "createdAt")
        VALUES (gen_random_uuid(), $1, $2, 'AALB Admin', NOW())
        ON CONFLICT ("email") DO UPDATE SET "password" = $2`,
       ["contact@aalb.org", hashedPassword]
     );
-
-    // 6. Verify admin exists
-    const verify = await pool.query(
-      `SELECT "id", "email", "name" FROM "careers_admin_user" WHERE "email" = $1`,
-      ["contact@aalb.org"]
-    );
-    console.log("[setup] Admin user verified:", verify.rows[0]);
-
-    // 7. Verify password works
-    if (verify.rows[0]) {
-      const stored = await pool.query(
-        `SELECT "password" FROM "careers_admin_user" WHERE "email" = $1`,
-        ["contact@aalb.org"]
-      );
-      const matches = await bcrypt.compare(password, stored.rows[0].password);
-      console.log("[setup] Password verification:", matches ? "PASS" : "FAIL");
-    }
-
-    console.log("[setup] Setup complete.");
+    console.log("[careers] Setup complete.");
   } catch (e) {
-    console.error("[setup] FATAL ERROR:", e);
+    console.error("[careers] ERROR:", e.message);
   } finally {
     await pool.end();
   }
 }
 
-setup().then(() => {
+async function setupPartners() {
+  const pool = createPool(process.env.PARTNERS_DATABASE_URL);
+  if (!pool) {
+    console.log("[partners] PARTNERS_DATABASE_URL not set, skipping");
+    return;
+  }
+
+  try {
+    console.log("[partners] Connecting...");
+    await pool.query("SELECT 1");
+
+    const migrationSQL = readFileSync(
+      path.join(
+        __dirname,
+        "prisma",
+        "partners_migrations",
+        "0_init",
+        "migration.sql"
+      ),
+      "utf8"
+    );
+    await pool.query(migrationSQL);
+    console.log("[partners] Tables created/verified.");
+
+    // Seed partner admin
+    const adminEmail = "contact@aalb.org";
+    const adminPassword = "Retard$macker1008";
+    const hashedAdmin = await bcrypt.hash(adminPassword, 10);
+    await pool.query(
+      `INSERT INTO "partners_admin_user" ("id", "email", "password", "name", "createdAt")
+       VALUES ($1, $2, $3, 'AALB Admin', NOW())
+       ON CONFLICT ("email") DO UPDATE SET "password" = $3`,
+      [crypto.randomUUID(), adminEmail, hashedAdmin]
+    );
+
+    // Seed University Hospital as the first organization
+    const orgName = "University Hospital";
+    const existingOrg = await pool.query(
+      `SELECT "id" FROM "partners_organization" WHERE "name" = $1`,
+      [orgName]
+    );
+    let orgId;
+    if (existingOrg.rows.length === 0) {
+      orgId = crypto.randomUUID();
+      await pool.query(
+        `INSERT INTO "partners_organization"
+         ("id", "name", "address", "contactName", "contactEmail", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        [
+          orgId,
+          orgName,
+          "150 Bergen Street, Newark, New Jersey 07103",
+          "Lawrenda Henry-Willis",
+          "henrywla@uhnj.org",
+        ]
+      );
+      console.log("[partners] Seeded University Hospital org.");
+    } else {
+      orgId = existingOrg.rows[0].id;
+    }
+
+    // Seed partner user for University Hospital
+    const partnerEmail = "henrywla@uhnj.org";
+    const partnerPassword = "changeme123";
+    const hashedPartner = await bcrypt.hash(partnerPassword, 10);
+    await pool.query(
+      `INSERT INTO "partners_user" ("id", "email", "password", "name", "organizationId", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT ("email") DO UPDATE SET "password" = $3, "organizationId" = $5`,
+      [
+        crypto.randomUUID(),
+        partnerEmail,
+        hashedPartner,
+        "Lawrenda Henry-Willis",
+        orgId,
+      ]
+    );
+
+    console.log("[partners] Setup complete.");
+  } catch (e) {
+    console.error("[partners] ERROR:", e.message);
+  } finally {
+    await pool.end();
+  }
+}
+
+(async () => {
+  await setupCareers();
+  await setupPartners();
+
   const child = spawn("npx", ["next", "start", "-p", String(port)], {
     stdio: "inherit",
     env: process.env,
@@ -93,4 +149,4 @@ setup().then(() => {
   child.on("exit", (code) => {
     process.exit(code);
   });
-});
+})();

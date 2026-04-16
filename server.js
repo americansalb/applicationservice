@@ -12,7 +12,13 @@ function createPool(connectionString) {
   const ssl = connectionString.includes("sslmode=")
     ? { rejectUnauthorized: false }
     : false;
-  return new Pool({ connectionString, ssl });
+  return new Pool({
+    connectionString,
+    ssl,
+    connectionTimeoutMillis: 10_000,
+    query_timeout: 30_000,
+    statement_timeout: 30_000,
+  });
 }
 
 async function setupCareers() {
@@ -47,7 +53,7 @@ async function setupCareers() {
   } catch (e) {
     console.error("[careers] ERROR:", e.message);
   } finally {
-    await pool.end();
+    await pool.end().catch(() => {});
   }
 }
 
@@ -75,7 +81,6 @@ async function setupPartners() {
     await pool.query(migrationSQL);
     console.log("[partners] Tables created/verified.");
 
-    // Seed partner admin
     const adminEmail = "contact@aalb.org";
     const adminPassword = "Retard$macker1008";
     const hashedAdmin = await bcrypt.hash(adminPassword, 10);
@@ -86,7 +91,6 @@ async function setupPartners() {
       [crypto.randomUUID(), adminEmail, hashedAdmin]
     );
 
-    // Seed University Hospital as the first organization
     const orgName = "University Hospital";
     const existingOrg = await pool.query(
       `SELECT "id" FROM "partners_organization" WHERE "name" = $1`,
@@ -112,7 +116,6 @@ async function setupPartners() {
       orgId = existingOrg.rows[0].id;
     }
 
-    // Seed partner user for University Hospital
     const partnerEmail = "henrywla@uhnj.org";
     const partnerPassword = "changeme123";
     const hashedPartner = await bcrypt.hash(partnerPassword, 10);
@@ -133,20 +136,26 @@ async function setupPartners() {
   } catch (e) {
     console.error("[partners] ERROR:", e.message);
   } finally {
-    await pool.end();
+    await pool.end().catch(() => {});
   }
 }
 
-(async () => {
-  await setupCareers();
-  await setupPartners();
+// Start Next.js immediately so Render sees the port binding fast.
+// Database setup runs in the background so a slow/unreachable DB can't
+// prevent the app from starting.
+const child = spawn("npx", ["next", "start", "-p", String(port)], {
+  stdio: "inherit",
+  env: process.env,
+});
+child.on("exit", (code) => process.exit(code));
 
-  const child = spawn("npx", ["next", "start", "-p", String(port)], {
-    stdio: "inherit",
-    env: process.env,
+// Kick off DB setup in the background, don't block port binding
+Promise.allSettled([setupCareers(), setupPartners()]).then((results) => {
+  results.forEach((r, i) => {
+    const name = i === 0 ? "careers" : "partners";
+    if (r.status === "rejected") {
+      console.error(`[${name}] setup rejected:`, r.reason);
+    }
   });
-
-  child.on("exit", (code) => {
-    process.exit(code);
-  });
-})();
+  console.log("[setup] All DB setup tasks finished.");
+});

@@ -253,23 +253,21 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
           <p className="text-sm text-[#1A202C]/70 leading-relaxed">
             {data.meta.description}
           </p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-[#E2E8F0] space-y-5">
-          <h2 className="text-base font-semibold text-[#1A202C]">Form</h2>
-          {fields.map((field) => (
-            <FormField
-              key={field.name}
-              field={field}
-              value={data.formData[field.name]}
-              onChange={(v) => updateField(field.name, v)}
-              disabled={locked}
-            />
-          ))}
+          <p className="text-xs text-[#00626F] bg-[#E6F4F6] border border-[#00626F]/20 rounded-lg px-3 py-2 mt-3">
+            <span className="font-semibold">How to complete this section:</span>{" "}
+            Upload any documents you already have, then use the optional questions
+            below only to fill in anything the documents don&apos;t cover. You
+            don&apos;t need to answer every question.
+          </p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
-          <h2 className="text-base font-semibold text-[#1A202C] mb-2">Documents</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-base font-semibold text-[#1A202C]">Documents</h2>
+            <span className="text-xs font-medium text-[#00626F] bg-[#E6F4F6] px-2 py-0.5 rounded-full">
+              Preferred
+            </span>
+          </div>
           <p className="text-sm text-[#1A202C]/60 mb-4">{data.meta.uploadPrompt}</p>
 
           {data.files.length > 0 && (
@@ -321,12 +319,35 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-[#E2E8F0] rounded-lg w-full py-6 text-sm text-[#1A202C]/60 hover:border-[#00626F] hover:text-[#00626F] transition-colors"
+                className="border-2 border-dashed border-[#E2E8F0] rounded-lg w-full py-8 text-sm text-[#1A202C]/60 hover:border-[#00626F] hover:text-[#00626F] hover:bg-[#F5F7FA] transition-colors"
               >
-                Click to upload file (PDF, DOCX, PNG, JPG · max 25MB)
+                <span className="block font-medium text-[#1A202C]">Click to upload a file</span>
+                <span className="block text-xs mt-1">PDF, DOCX, PNG, JPG · up to 25MB</span>
               </button>
             </>
           )}
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-[#E2E8F0] space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-[#1A202C]">
+              Additional Questions{" "}
+              <span className="text-sm font-normal text-[#1A202C]/50">(optional)</span>
+            </h2>
+            <p className="text-sm text-[#1A202C]/60 mt-1">
+              Answer only the questions your uploaded documents don&apos;t already cover.
+              Leave the rest blank.
+            </p>
+          </div>
+          {fields.map((field) => (
+            <FormField
+              key={field.name}
+              field={field}
+              value={data.formData[field.name]}
+              onChange={(v) => updateField(field.name, v)}
+              disabled={locked}
+            />
+          ))}
         </div>
 
         {!locked && (

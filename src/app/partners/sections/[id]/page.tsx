@@ -48,9 +48,13 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
   const [data, setData] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>("");
   const [responseMsg, setResponseMsg] = useState("");
   const [sendingResponse, setSendingResponse] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const formDirtyRef = useRef(false);
+  const dataRef = useRef<SectionData | null>(null);
 
   const sectionKey = params.id as SectionKey;
   const fields: Field[] = useMemo(() => {
@@ -89,16 +93,55 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
 
   const locked =
     data?.status === "Submitted" ||
-    data?.status === "Under Review" ||
     data?.status === "Approved";
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const updateField = (name: string, value: unknown) => {
     if (!data) return;
-    setData({ ...data, formData: { ...data.formData, [name]: value } });
+    const updated = { ...data, formData: { ...data.formData, [name]: value } };
+    setData(updated);
+    dataRef.current = updated;
+    formDirtyRef.current = true;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => autoSave(), 30_000);
   };
 
+  const autoSave = async () => {
+    const current = dataRef.current;
+    if (!formDirtyRef.current || !current || locked) return;
+    const token = getToken();
+    if (!token) return;
+    formDirtyRef.current = false;
+    setAutoSaveStatus("Saving...");
+    try {
+      await fetch(`/api/partners/sections/${sectionKey}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ formData: current.formData, submit: false }),
+      });
+      setAutoSaveStatus("Saved");
+      setTimeout(() => setAutoSaveStatus(""), 3000);
+    } catch {
+      setAutoSaveStatus("Save failed");
+      formDirtyRef.current = true;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, []);
+
   const save = async (submit: boolean) => {
-    if (!data) return;
+    const current = dataRef.current;
+    if (!current) return;
     const token = getToken();
     if (!token) return;
     setSaving(true);
@@ -109,7 +152,7 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ formData: data.formData, submit }),
+        body: JSON.stringify({ formData: current.formData, submit }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -253,105 +296,164 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
           <p className="text-sm text-[#1A202C]/70 leading-relaxed">
             {data.meta.description}
           </p>
-          <p className="text-xs text-[#00626F] bg-[#E6F4F6] border border-[#00626F]/20 rounded-lg px-3 py-2 mt-3">
-            <span className="font-semibold">How to complete this section:</span>{" "}
-            Upload any documents you already have, then use the optional questions
-            below only to fill in anything the documents don&apos;t cover. You
-            don&apos;t need to answer every question.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-base font-semibold text-[#1A202C]">Documents</h2>
-            <span className="text-xs font-medium text-[#00626F] bg-[#E6F4F6] px-2 py-0.5 rounded-full">
-              Preferred
-            </span>
-          </div>
-          <p className="text-sm text-[#1A202C]/60 mb-4">{data.meta.uploadPrompt}</p>
-
-          {data.files.length > 0 && (
-            <ul className="space-y-2 mb-4">
-              {data.files.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between bg-[#F5F7FA] rounded-lg px-3 py-2 border border-[#E2E8F0]"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#1A202C] truncate">{f.filename}</p>
-                    <p className="text-xs text-[#1A202C]/60">
-                      {formatSize(f.sizeBytes)} · {new Date(f.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 ml-3">
-                    <a
-                      href={`/api/partners/files/${f.id}?token=${getToken()}`}
-                      className="text-[#00626F] hover:text-[#008B8B] text-xs font-medium"
-                    >
-                      Download
-                    </a>
-                    {!locked && (
-                      <button
-                        onClick={() => deleteFile(f.id)}
-                        className="text-[#E53E3E] hover:text-red-700 text-xs font-medium"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {!locked && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadFile(f);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-[#E2E8F0] rounded-lg w-full py-8 text-sm text-[#1A202C]/60 hover:border-[#00626F] hover:text-[#00626F] hover:bg-[#F5F7FA] transition-colors"
-              >
-                <span className="block font-medium text-[#1A202C]">Click to upload a file</span>
-                <span className="block text-xs mt-1">PDF, DOCX, PNG, JPG · up to 25MB</span>
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-[#E2E8F0] space-y-5">
-          <div>
-            <h2 className="text-base font-semibold text-[#1A202C]">
-              Additional Questions{" "}
-              <span className="text-sm font-normal text-[#1A202C]/50">(optional)</span>
-            </h2>
-            <p className="text-sm text-[#1A202C]/60 mt-1">
-              Answer only the questions your uploaded documents don&apos;t already cover.
-              Leave the rest blank.
-            </p>
-          </div>
-          {fields.map((field) => (
-            <FormField
-              key={field.name}
-              field={field}
-              value={data.formData[field.name]}
-              onChange={(v) => updateField(field.name, v)}
-              disabled={locked}
-            />
-          ))}
         </div>
 
         {!locked && (
+          <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
+            <h2 className="text-base font-semibold text-[#1A202C] mb-2">
+              How would you like to respond?
+            </h2>
+            <p className="text-sm text-[#1A202C]/60 mb-4">
+              Choose whatever works best for your institution. You can change this anytime before submitting.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([
+                ["documents", "Upload documents", "We have existing policies, JDs, or other documents that cover this."],
+                ["questions", "Answer questions", "We\u2019ll describe our process by answering specific questions below."],
+                ["both", "Both", "We\u2019ll upload documents and fill in any gaps with the questions below."],
+                ["not_applicable", "Not applicable", "We don\u2019t have a formal process for this area yet."],
+              ] as const).map(([value, label, desc]) => {
+                const selected = (data.formData._responseType as string) === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      updateField("_responseType", value);
+                    }}
+                    className={`text-left p-4 rounded-lg border-2 transition-all ${
+                      selected
+                        ? "border-[#00626F] bg-[#E6F4F6]"
+                        : "border-[#E2E8F0] hover:border-[#00626F]/40"
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold ${selected ? "text-[#00626F]" : "text-[#1A202C]"}`}>
+                      {label}
+                    </p>
+                    <p className="text-xs text-[#1A202C]/60 mt-1">{desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {locked && data.formData._responseType === "not_applicable" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+            This institution indicated they do not have a formal process for this area yet.
+          </div>
+        )}
+
+        {(data.formData._responseType === "documents" ||
+          data.formData._responseType === "both" ||
+          (!locked && !data.formData._responseType && data.files.length > 0)) && (
+          <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
+            <h2 className="text-base font-semibold text-[#1A202C] mb-2">Documents</h2>
+            <p className="text-sm text-[#1A202C]/60 mb-4">{data.meta.uploadPrompt}</p>
+
+            {data.files.length > 0 && (
+              <ul className="space-y-2 mb-4">
+                {data.files.map((f) => (
+                  <li
+                    key={f.id}
+                    className="flex items-center justify-between bg-[#F5F7FA] rounded-lg px-3 py-2 border border-[#E2E8F0]"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1A202C] truncate">{f.filename}</p>
+                      <p className="text-xs text-[#1A202C]/60">
+                        {formatSize(f.sizeBytes)} · {new Date(f.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-3">
+                      <a
+                        href={`/api/partners/files/${f.id}?token=${getToken()}`}
+                        className="text-[#00626F] hover:text-[#008B8B] text-xs font-medium"
+                      >
+                        Download
+                      </a>
+                      {!locked && (
+                        <button
+                          onClick={() => deleteFile(f.id)}
+                          className="text-[#E53E3E] hover:text-red-700 text-xs font-medium"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {!locked && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadFile(f);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-[#E2E8F0] rounded-lg w-full py-8 text-sm text-[#1A202C]/60 hover:border-[#00626F] hover:text-[#00626F] hover:bg-[#F5F7FA] transition-colors"
+                >
+                  <span className="block font-medium text-[#1A202C]">Click to upload a file</span>
+                  <span className="block text-xs mt-1">PDF, DOCX, PNG, JPG · up to 25MB</span>
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {(data.formData._responseType === "questions" ||
+          data.formData._responseType === "both") && (
+          <div className="bg-white rounded-xl p-6 border border-[#E2E8F0] space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-[#1A202C]">Questions</h2>
+              <p className="text-sm text-[#1A202C]/60 mt-1">
+                {data.formData._responseType === "both"
+                  ? "Fill in anything your documents don\u2019t already cover."
+                  : "Describe your institution\u2019s current approach."}
+              </p>
+            </div>
+            {fields.map((field) => (
+              <FormField
+                key={field.name}
+                field={field}
+                value={data.formData[field.name]}
+                onChange={(v) => updateField(field.name, v)}
+                disabled={locked}
+              />
+            ))}
+          </div>
+        )}
+
+        {data.formData._responseType === "not_applicable" && !locked && (
+          <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
+            <h2 className="text-base font-semibold text-[#1A202C] mb-2">Notes</h2>
+            <p className="text-sm text-[#1A202C]/60 mb-3">
+              Anything you&apos;d like AALB to know about why this area isn&apos;t applicable or what your plans are?
+            </p>
+            <textarea
+              value={(data.formData._notApplicableNotes as string) || ""}
+              onChange={(e) => updateField("_notApplicableNotes", e.target.value)}
+              rows={4}
+              placeholder="Optional..."
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:ring-2 focus:ring-[#00626F] focus:border-[#00626F] outline-none"
+            />
+          </div>
+        )}
+
+        {!locked && (
           <div className="flex items-center justify-end gap-3">
+            {autoSaveStatus && (
+              <span className="text-xs text-[#1A202C]/50">{autoSaveStatus}</span>
+            )}
             <button
               onClick={() => save(false)}
               disabled={saving}

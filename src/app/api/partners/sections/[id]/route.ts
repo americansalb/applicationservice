@@ -98,7 +98,10 @@ export async function PUT(
     [token.organizationId, key]
   );
   const currentStatus = current.rows[0]?.status || "Not Started";
-  if (["Submitted", "Under Review", "Approved"].includes(currentStatus) && !submit) {
+
+  // Only allow edits when Not Started, In Progress, or Needs Clarification
+  const editable = ["Not Started", "In Progress", "Needs Clarification"];
+  if (!editable.includes(currentStatus)) {
     return NextResponse.json(
       { error: "Section is locked" },
       { status: 403 }

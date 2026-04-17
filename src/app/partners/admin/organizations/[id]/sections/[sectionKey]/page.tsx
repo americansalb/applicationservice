@@ -50,6 +50,7 @@ export default function AdminSectionReviewPage({
 }) {
   const router = useRouter();
   const [data, setData] = useState<SectionData | null>(null);
+  const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(true);
   const [clarifyMode, setClarifyMode] = useState(false);
   const [clarifyMessage, setClarifyMessage] = useState("");
@@ -76,6 +77,16 @@ export default function AdminSectionReviewPage({
       return;
     }
     setData(await res.json());
+
+    // Fetch org name for context
+    const orgRes = await fetch(
+      `/api/partners/admin/organizations/${params.id}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (orgRes.ok) {
+      const orgData = await orgRes.json();
+      setOrgName(orgData.organization.name);
+    }
     setLoading(false);
   };
 
@@ -175,7 +186,7 @@ export default function AdminSectionReviewPage({
           <div className="flex items-start justify-between mt-2">
             <div>
               <p className="text-xs uppercase tracking-wider text-white/70">
-                Section {data.meta.number} · Review
+                {orgName && <>{orgName} · </>}Section {data.meta.number} · Review
               </p>
               <h1 className="text-xl font-semibold mt-1">{data.meta.title}</h1>
             </div>

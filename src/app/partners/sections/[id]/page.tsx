@@ -48,9 +48,12 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
   const [data, setData] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>("");
   const [responseMsg, setResponseMsg] = useState("");
   const [sendingResponse, setSendingResponse] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const formDirtyRef = useRef(false);
 
   const sectionKey = params.id as SectionKey;
   const fields: Field[] = useMemo(() => {
@@ -89,13 +92,44 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
 
   const locked =
     data?.status === "Submitted" ||
-    data?.status === "Under Review" ||
     data?.status === "Approved";
 
   const updateField = (name: string, value: unknown) => {
     if (!data) return;
     setData({ ...data, formData: { ...data.formData, [name]: value } });
+    formDirtyRef.current = true;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => autoSave(), 30_000);
   };
+
+  const autoSave = async () => {
+    if (!formDirtyRef.current || !data || locked) return;
+    const token = getToken();
+    if (!token) return;
+    formDirtyRef.current = false;
+    setAutoSaveStatus("Saving...");
+    try {
+      await fetch(`/api/partners/sections/${sectionKey}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ formData: data.formData, submit: false }),
+      });
+      setAutoSaveStatus("Saved");
+      setTimeout(() => setAutoSaveStatus(""), 3000);
+    } catch {
+      setAutoSaveStatus("Save failed");
+      formDirtyRef.current = true;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, []);
 
   const save = async (submit: boolean) => {
     if (!data) return;
@@ -352,6 +386,9 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
 
         {!locked && (
           <div className="flex items-center justify-end gap-3">
+            {autoSaveStatus && (
+              <span className="text-xs text-[#1A202C]/50">{autoSaveStatus}</span>
+            )}
             <button
               onClick={() => save(false)}
               disabled={saving}

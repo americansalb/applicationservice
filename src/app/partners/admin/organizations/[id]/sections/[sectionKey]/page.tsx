@@ -263,7 +263,16 @@ export default function AdminSectionReviewPage({
                     </p>
                   </div>
                   <a
-                    href={`/api/partners/files/${f.id}?token=${getToken()}`}
+                    href="#"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      const t = getToken();
+                      const r = await fetch(`/api/partners/files/${f.id}/token`, {
+                        headers: { Authorization: `Bearer ${t}` },
+                      });
+                      const { downloadToken } = await r.json();
+                      window.open(`/api/partners/files/${f.id}?dl=${downloadToken}`, "_blank");
+                    }}
                     className="text-[#00626F] hover:text-[#008B8B] text-xs font-medium"
                   >
                     Download

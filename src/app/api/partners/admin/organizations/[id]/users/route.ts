@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/partnersAuth";
 import { getPartnersPool } from "@/lib/partnersDb";
+import { validatePassword } from "@/lib/passwordPolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,10 @@ export async function POST(
   const { email, password, name } = body;
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+  }
+  const policyError = validatePassword(password);
+  if (policyError) {
+    return NextResponse.json({ error: policyError }, { status: 400 });
   }
 
   const pool = getPartnersPool();

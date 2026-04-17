@@ -76,9 +76,14 @@ export default function PartnerDashboardPage() {
             </p>
             <h1 className="text-lg font-semibold">Partner Intake Portal</h1>
           </div>
-          <button onClick={logout} className="text-white/80 hover:text-white text-sm">
-            Sign out
-          </button>
+          <div className="flex items-center gap-4">
+            <Link href="/partners/change-password" className="text-white/70 hover:text-white text-sm">
+              Change password
+            </Link>
+            <button onClick={logout} className="text-white/80 hover:text-white text-sm">
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 

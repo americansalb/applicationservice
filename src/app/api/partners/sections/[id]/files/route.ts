@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { requirePartner } from "@/lib/partnersAuth";
 import { getPartnersPool, SECTION_KEYS, SectionKey } from "@/lib/partnersDb";
+import { validateFileContent } from "@/lib/fileMagic";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,6 +44,12 @@ export async function POST(
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!validateFileContent(buffer, file.type)) {
+    return NextResponse.json(
+      { error: "File content doesn't match its type. The file may be corrupted or misnamed." },
+      { status: 400 }
+    );
+  }
   const id = crypto.randomUUID();
   const pool = getPartnersPool();
 

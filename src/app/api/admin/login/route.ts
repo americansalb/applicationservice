@@ -2,11 +2,21 @@ import { getPool } from "@/lib/pg";
 import { signToken } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = checkRateLimit(`careers-login:${ip}`);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+      );
+    }
+
     const { email, password } = await req.json();
 
     if (!email || !password) {

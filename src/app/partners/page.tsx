@@ -93,6 +93,11 @@ export default function PartnerLoginPage() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
+            <p className="text-center mt-3">
+              <a href="/partners/reset-password" className="text-[#00626F] text-sm hover:underline">
+                Forgot password?
+              </a>
+            </p>
           </form>
         </div>
       </div>

@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getPartnersPool } from "@/lib/partnersDb";
 import { signPartnerToken } from "@/lib/partnersAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = checkRateLimit(`partner-login:${ip}`);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+      );
+    }
+
     const { email, password } = await req.json();
     if (!email || !password) {
       return NextResponse.json(
@@ -33,6 +44,7 @@ export async function POST(req: NextRequest) {
         email: admin.email,
         role: "admin",
       });
+      await logAudit({ action: "login", userId: admin.id, userRole: "admin", userEmail: admin.email, ip });
       return NextResponse.json({
         token,
         role: "admin",
@@ -64,6 +76,7 @@ export async function POST(req: NextRequest) {
       organizationId: partner.organizationId,
     });
 
+    await logAudit({ action: "login", userId: partner.id, userRole: "partner", userEmail: partner.email, organizationId: partner.organizationId, ip });
     return NextResponse.json({
       token,
       role: "partner",

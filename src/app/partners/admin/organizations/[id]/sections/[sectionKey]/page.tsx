@@ -202,6 +202,27 @@ export default function AdminSectionReviewPage({
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {!!data.formData._responseType && (
+          <div className="bg-[#E6F4F6] border border-[#00626F]/20 rounded-xl p-4 text-sm text-[#00626F]">
+            <span className="font-semibold">Response type:</span>{" "}
+            {String(data.formData._responseType) === "documents" && "Document upload only"}
+            {String(data.formData._responseType) === "questions" && "Written responses only"}
+            {String(data.formData._responseType) === "both" && "Documents + written responses"}
+            {String(data.formData._responseType) === "not_applicable" && "Marked as not applicable"}
+          </div>
+        )}
+
+        {String(data.formData._responseType) === "not_applicable" && !!data.formData._notApplicableNotes && (
+          <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
+            <h2 className="text-base font-semibold text-[#1A202C] mb-2">Partner Notes</h2>
+            <p className="text-sm text-[#1A202C] whitespace-pre-wrap">
+              {String(data.formData._notApplicableNotes)}
+            </p>
+          </div>
+        )}
+
+        {String(data.formData._responseType) !== "not_applicable" &&
+         String(data.formData._responseType) !== "documents" && (
         <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
           <h2 className="text-base font-semibold text-[#1A202C] mb-4">Responses</h2>
           <dl className="space-y-4">
@@ -217,6 +238,7 @@ export default function AdminSectionReviewPage({
             ))}
           </dl>
         </div>
+        )}
 
         <div className="bg-white rounded-xl p-6 border border-[#E2E8F0]">
           <h2 className="text-base font-semibold text-[#1A202C] mb-3">

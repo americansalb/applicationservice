@@ -54,6 +54,7 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const formDirtyRef = useRef(false);
+  const dataRef = useRef<SectionData | null>(null);
 
   const sectionKey = params.id as SectionKey;
   const fields: Field[] = useMemo(() => {
@@ -94,16 +95,23 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
     data?.status === "Submitted" ||
     data?.status === "Approved";
 
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   const updateField = (name: string, value: unknown) => {
     if (!data) return;
-    setData({ ...data, formData: { ...data.formData, [name]: value } });
+    const updated = { ...data, formData: { ...data.formData, [name]: value } };
+    setData(updated);
+    dataRef.current = updated;
     formDirtyRef.current = true;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => autoSave(), 30_000);
   };
 
   const autoSave = async () => {
-    if (!formDirtyRef.current || !data || locked) return;
+    const current = dataRef.current;
+    if (!formDirtyRef.current || !current || locked) return;
     const token = getToken();
     if (!token) return;
     formDirtyRef.current = false;
@@ -115,7 +123,7 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ formData: data.formData, submit: false }),
+        body: JSON.stringify({ formData: current.formData, submit: false }),
       });
       setAutoSaveStatus("Saved");
       setTimeout(() => setAutoSaveStatus(""), 3000);
@@ -132,7 +140,8 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
   }, []);
 
   const save = async (submit: boolean) => {
-    if (!data) return;
+    const current = dataRef.current;
+    if (!current) return;
     const token = getToken();
     if (!token) return;
     setSaving(true);
@@ -143,7 +152,7 @@ export default function PartnerSectionPage({ params }: { params: { id: string } 
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ formData: data.formData, submit }),
+        body: JSON.stringify({ formData: current.formData, submit }),
       });
       const result = await res.json();
       if (!res.ok) {

@@ -42,13 +42,17 @@ async function setupCareers() {
       `DELETE FROM "careers_admin_user" WHERE "email" = 'admin@aalb.org'`
     );
 
-    const hashedPassword = await bcrypt.hash("Retard$macker1008", 10);
-    await pool.query(
-      `INSERT INTO "careers_admin_user" ("id", "email", "password", "name", "createdAt")
-       VALUES (gen_random_uuid(), $1, $2, 'AALB Admin', NOW())
-       ON CONFLICT ("email") DO UPDATE SET "password" = $2`,
-      ["contact@aalb.org", hashedPassword]
-    );
+    const adminEmail = process.env.ADMIN_EMAIL || "contact@aalb.org";
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (adminPass) {
+      const hashedPassword = await bcrypt.hash(adminPass, 12);
+      await pool.query(
+        `INSERT INTO "careers_admin_user" ("id", "email", "password", "name", "createdAt")
+         VALUES (gen_random_uuid(), $1, $2, 'AALB Admin', NOW())
+         ON CONFLICT ("email") DO UPDATE SET "password" = $2`,
+        [adminEmail, hashedPassword]
+      );
+    }
     console.log("[careers] Setup complete.");
   } catch (e) {
     console.error("[careers] ERROR:", e.message);
@@ -81,16 +85,19 @@ async function setupPartners() {
     await pool.query(migrationSQL);
     console.log("[partners] Tables created/verified.");
 
-    const adminEmail = "contact@aalb.org";
-    const adminPassword = "Retard$macker1008";
-    const hashedAdmin = await bcrypt.hash(adminPassword, 10);
-    await pool.query(
-      `INSERT INTO "partners_admin_user" ("id", "email", "password", "name", "createdAt")
-       VALUES ($1, $2, $3, 'AALB Admin', NOW())
-       ON CONFLICT ("email") DO UPDATE SET "password" = $3`,
-      [crypto.randomUUID(), adminEmail, hashedAdmin]
-    );
+    const pAdminEmail = process.env.ADMIN_EMAIL || "contact@aalb.org";
+    const pAdminPass = process.env.ADMIN_PASSWORD;
+    if (pAdminPass) {
+      const hashedAdmin = await bcrypt.hash(pAdminPass, 12);
+      await pool.query(
+        `INSERT INTO "partners_admin_user" ("id", "email", "password", "name", "createdAt")
+         VALUES ($1, $2, $3, 'AALB Admin', NOW())
+         ON CONFLICT ("email") DO UPDATE SET "password" = $3`,
+        [crypto.randomUUID(), pAdminEmail, hashedAdmin]
+      );
+    }
 
+    // Seed University Hospital (first-run only)
     const orgName = "University Hospital";
     const existingOrg = await pool.query(
       `SELECT "id" FROM "partners_organization" WHERE "name" = $1`,
@@ -116,9 +123,10 @@ async function setupPartners() {
       orgId = existingOrg.rows[0].id;
     }
 
+    // Seed partner user (first-run only, uses temp password from env)
     const partnerEmail = "henrywla@uhnj.org";
-    const partnerPassword = "changeme123";
-    const hashedPartner = await bcrypt.hash(partnerPassword, 10);
+    const partnerPassword = process.env.SEED_PARTNER_PASSWORD || "changeme123";
+    const hashedPartner = await bcrypt.hash(partnerPassword, 12);
     await pool.query(
       `INSERT INTO "partners_user" ("id", "email", "password", "name", "organizationId", "createdAt")
        VALUES ($1, $2, $3, $4, $5, NOW())

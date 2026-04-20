@@ -117,3 +117,35 @@ BEGIN
       ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 END $$;
+
+-- Audit log
+CREATE TABLE IF NOT EXISTS "partners_audit_log" (
+  "id" TEXT NOT NULL,
+  "action" TEXT NOT NULL,
+  "userId" TEXT,
+  "userRole" TEXT,
+  "userEmail" TEXT,
+  "organizationId" TEXT,
+  "sectionKey" TEXT,
+  "detail" TEXT,
+  "ip" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "partners_audit_log_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS "partners_audit_log_org_idx"
+  ON "partners_audit_log" ("organizationId");
+CREATE INDEX IF NOT EXISTS "partners_audit_log_created_idx"
+  ON "partners_audit_log" ("createdAt" DESC);
+
+-- Password reset tokens
+CREATE TABLE IF NOT EXISTS "partners_password_reset" (
+  "id" TEXT NOT NULL,
+  "email" TEXT NOT NULL,
+  "token" TEXT NOT NULL,
+  "expiresAt" TIMESTAMP(3) NOT NULL,
+  "used" BOOLEAN NOT NULL DEFAULT false,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "partners_password_reset_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS "partners_password_reset_token_idx"
+  ON "partners_password_reset" ("token");

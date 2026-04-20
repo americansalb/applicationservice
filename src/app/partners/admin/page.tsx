@@ -10,9 +10,17 @@ type Org = {
   address: string | null;
   contactName: string | null;
   contactEmail: string | null;
-  approvedCount: number;
+  intakeStatus: string;
   step0CompletedAt: string | null;
   createdAt: string;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  "Not Started": "bg-gray-100 text-gray-700",
+  "In Progress": "bg-amber-50 text-amber-700",
+  "Submitted": "bg-[#E6F4F6] text-[#00626F]",
+  "Needs Clarification": "bg-red-50 text-[#E53E3E]",
+  "Approved": "bg-green-50 text-[#38A169]",
 };
 
 export default function AdminDashboardPage() {
@@ -95,11 +103,13 @@ export default function AdminDashboardPage() {
                   <h3 className="font-semibold text-[#1A202C] group-hover:text-[#00626F]">
                     {org.name}
                   </h3>
-                  {org.step0CompletedAt ? (
-                    <span className="text-xs font-medium px-2 py-0.5 bg-green-50 text-[#38A169] rounded-full">
-                      Step 0 Complete
-                    </span>
-                  ) : null}
+                  <span
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                      STATUS_STYLES[org.intakeStatus] || STATUS_STYLES["Not Started"]
+                    }`}
+                  >
+                    {org.intakeStatus}
+                  </span>
                 </div>
                 {org.contactName && (
                   <p className="text-sm text-[#1A202C]/70">{org.contactName}</p>
@@ -107,17 +117,12 @@ export default function AdminDashboardPage() {
                 {org.contactEmail && (
                   <p className="text-xs text-[#1A202C]/60">{org.contactEmail}</p>
                 )}
-                <div className="mt-4 flex items-center gap-3">
-                  <div className="flex-1 bg-[#E2E8F0] rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-[#00626F] h-1.5 transition-all"
-                      style={{ width: `${(org.approvedCount / 4) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-[#1A202C]/70">
-                    {org.approvedCount} / 4
-                  </span>
-                </div>
+                {org.step0CompletedAt && (
+                  <p className="text-xs text-[#38A169] font-medium mt-3">
+                    Step 0 Complete &middot;{" "}
+                    {new Date(org.step0CompletedAt).toLocaleDateString()}
+                  </p>
+                )}
               </Link>
             ))}
           </div>

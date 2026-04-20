@@ -13,20 +13,14 @@ export async function GET(req: NextRequest) {
   const result = await pool.query(
     `SELECT o."id", o."name", o."address", o."contactName", o."contactEmail",
             o."step0CompletedAt", o."createdAt",
-            COUNT(DISTINCT s."id") FILTER (WHERE s."status" = 'Approved') AS "approvedCount",
-            COUNT(DISTINCT s."id") AS "totalSections"
+            COALESCE(s."status", 'Not Started') AS "intakeStatus"
      FROM "partners_organization" o
-     LEFT JOIN "partners_section_data" s ON s."organizationId" = o."id"
-     GROUP BY o."id"
+     LEFT JOIN "partners_section_data" s
+       ON s."organizationId" = o."id" AND s."sectionKey" = 'intake'
      ORDER BY o."createdAt" DESC`
   );
 
-  return NextResponse.json({
-    organizations: result.rows.map((r) => ({
-      ...r,
-      approvedCount: Number(r.approvedCount),
-    })),
-  });
+  return NextResponse.json({ organizations: result.rows });
 }
 
 export async function POST(req: NextRequest) {
@@ -36,7 +30,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, address, contactName, contactEmail } = body;
   if (!name) {
-    return NextResponse.json({ error: "Organization name required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Organization name required" },
+      { status: 400 }
+    );
   }
 
   const pool = getPartnersPool();

@@ -90,7 +90,20 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("partner login error:", e);
-    const message = e instanceof Error ? e.message : "Login failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const code = (e as { code?: string } | null)?.code;
+    const msg = e instanceof Error ? e.message : "";
+    const isConnectivity =
+      code === "ENOTFOUND" ||
+      code === "ECONNREFUSED" ||
+      code === "ETIMEDOUT" ||
+      /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(msg);
+    return NextResponse.json(
+      {
+        error: isConnectivity
+          ? "Service temporarily unavailable. Please try again shortly."
+          : "Login failed",
+      },
+      { status: isConnectivity ? 503 : 500 }
+    );
   }
 }

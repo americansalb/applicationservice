@@ -56,7 +56,20 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Login error:", error);
-    const message = error instanceof Error ? error.message : "Login failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const code = (error as { code?: string } | null)?.code;
+    const msg = error instanceof Error ? error.message : "";
+    const isConnectivity =
+      code === "ENOTFOUND" ||
+      code === "ECONNREFUSED" ||
+      code === "ETIMEDOUT" ||
+      /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(msg);
+    return NextResponse.json(
+      {
+        error: isConnectivity
+          ? "Service temporarily unavailable. Please try again shortly."
+          : "Login failed",
+      },
+      { status: isConnectivity ? 503 : 500 }
+    );
   }
 }

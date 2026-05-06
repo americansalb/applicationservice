@@ -29,6 +29,32 @@ interface Application {
   job: { title: string; department: string };
 }
 
+interface InterviewSubmission {
+  id: string;
+  jobSlug: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string | null;
+  linkedIn: string | null;
+  yearsExp: string | null;
+  answers: Record<string, string>;
+  videoUrls: Record<string, { fileId: string; webViewLink: string }>;
+  status: string;
+  createdAt: string;
+}
+
+interface InterviewBooking {
+  id: string;
+  jobSlug: string;
+  slotStart: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  notes: string | null;
+  createdAt: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   New: "bg-blue-100 text-blue-700",
   Reviewing: "bg-yellow-100 text-yellow-700",
@@ -46,7 +72,11 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [view, setView] = useState<"dashboard" | "applications" | "postJob">("dashboard");
+  const [interviews, setInterviews] = useState<InterviewSubmission[]>([]);
+  const [bookings, setBookings] = useState<InterviewBooking[]>([]);
+  const [view, setView] = useState<
+    "dashboard" | "applications" | "postJob" | "interviews" | "bookings"
+  >("dashboard");
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -74,6 +104,8 @@ export default function AdminPage() {
     if (!token) return;
     fetchStats();
     fetchApplications();
+    fetchInterviews();
+    fetchBookings();
   }, [token]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -119,6 +151,20 @@ export default function AdminPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setApplications(await res.json());
+  };
+
+  const fetchInterviews = async () => {
+    const res = await fetch("/api/admin/interviews", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setInterviews(await res.json());
+  };
+
+  const fetchBookings = async () => {
+    const res = await fetch("/api/admin/bookings", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setBookings(await res.json());
   };
 
   const submitJob = async (e: React.FormEvent) => {
@@ -259,6 +305,22 @@ export default function AdminPage() {
                 >
                   Post Job
                 </button>
+                <button
+                  onClick={() => setView("interviews")}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === "interviews" ? "bg-teal-700 text-white" : "text-teal-300 hover:text-white"
+                  }`}
+                >
+                  Interviews
+                </button>
+                <button
+                  onClick={() => setView("bookings")}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === "bookings" ? "bg-teal-700 text-white" : "text-teal-300 hover:text-white"
+                  }`}
+                >
+                  Bookings
+                </button>
               </div>
             </div>
             <button
@@ -297,6 +359,22 @@ export default function AdminPage() {
             }`}
           >
             Post Job
+          </button>
+          <button
+            onClick={() => setView("interviews")}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              view === "interviews" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
+            }`}
+          >
+            Interviews
+          </button>
+          <button
+            onClick={() => setView("bookings")}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              view === "bookings" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
+            }`}
+          >
+            Bookings
           </button>
         </div>
 
@@ -589,6 +667,120 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {view === "interviews" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Interview Submissions</h2>
+                <p className="text-sm text-gray-500">Round 2 video interviews from candidates.</p>
+              </div>
+              <span className="text-sm text-gray-400">{interviews.length} total</span>
+            </div>
+            {interviews.length === 0 ? (
+              <p className="px-6 py-10 text-center text-gray-400">No submissions yet.</p>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {interviews.map((s) => (
+                  <details key={s.id} className="px-6 py-4">
+                    <summary className="cursor-pointer flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{s.fullName}</p>
+                        <p className="text-xs text-gray-500">
+                          {s.email} · {s.phone}
+                          {s.location ? ` · ${s.location}` : ""}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {new Date(s.createdAt).toLocaleString()}
+                      </span>
+                    </summary>
+                    <div className="mt-4 space-y-3">
+                      {s.linkedIn && (
+                        <p className="text-sm">
+                          <span className="text-gray-500">LinkedIn:</span>{" "}
+                          <a href={s.linkedIn} target="_blank" rel="noreferrer" className="text-teal-700 underline">
+                            {s.linkedIn}
+                          </a>
+                        </p>
+                      )}
+                      {s.yearsExp && (
+                        <p className="text-sm"><span className="text-gray-500">Years exp:</span> {s.yearsExp}</p>
+                      )}
+                      {Object.entries(s.videoUrls).map(([qid, v]) => (
+                        <div key={qid} className="bg-gray-50 rounded-md p-3">
+                          <p className="text-xs font-medium text-gray-500 uppercase mb-1">{qid}</p>
+                          <a href={v.webViewLink} target="_blank" rel="noreferrer" className="text-teal-700 underline text-sm">
+                            Watch video on Drive
+                          </a>
+                          {s.answers[qid] && (
+                            <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{s.answers[qid]}</p>
+                          )}
+                        </div>
+                      ))}
+                      {Object.entries(s.answers).map(([qid, text]) =>
+                        s.videoUrls[qid] ? null : (
+                          <div key={qid} className="bg-gray-50 rounded-md p-3">
+                            <p className="text-xs font-medium text-gray-500 uppercase mb-1">{qid} (text only)</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{text}</p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === "bookings" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">In-Person Interview Bookings</h2>
+                <p className="text-sm text-gray-500">Mexico City · all times shown in local Mexico City time.</p>
+              </div>
+              <span className="text-sm text-gray-400">{bookings.length} total</span>
+            </div>
+            {bookings.length === 0 ? (
+              <p className="px-6 py-10 text-center text-gray-400">No bookings yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">When</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Candidate</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Contact</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {bookings.map((b) => (
+                    <tr key={b.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {new Date(b.slotStart).toLocaleString("en-US", {
+                          timeZone: "America/Mexico_City",
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-6 py-4">{b.fullName}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <div>{b.email}</div>
+                        <div className="text-xs text-gray-500">{b.phone}</div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 whitespace-pre-wrap">{b.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </div>

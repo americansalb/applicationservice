@@ -100,6 +100,19 @@ async function main() {
       benefits:
         "Paid internship ($20/hour)\nFlexible schedule around classes\nNetworking opportunities with industry leaders\nPotential for full-time offer upon completion",
     },
+    {
+      title: "Skills Lab Leader",
+      department: "Programs",
+      location: "Mexico City / Remote",
+      type: "Full-time",
+      salary: "Competitive",
+      description:
+        "Lead AALB's Skills Lab — hands-on training programs that help language professionals build interpretation, translation, and cross-cultural competency skills. You'll design curriculum, facilitate live sessions, mentor participants, and measure learning outcomes.\n\nThis is an invitation-only round 2. If you have been invited, complete the self-paced video interview and (if applicable) book your in-person session in Mexico City using the links provided in your invitation email.",
+      requirements:
+        "Demonstrated experience designing and running training or skills-development sessions\nStrong facilitation and mentoring skills\nAbility to assess learner competency, not just completion\nExcellent written and verbal communication\nFluent in Spanish and English\nExperience in language services, education, or related fields",
+      benefits:
+        "Competitive compensation\nProfessional development budget\nFlexible work arrangement\nOpportunity to shape AALB's flagship training program",
+    },
   ];
 
   for (const job of jobs) {

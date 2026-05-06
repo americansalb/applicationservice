@@ -67,3 +67,37 @@ model AdminUser {
 
   @@map("careers_admin_user")
 }
+
+model InterviewSubmission {
+  id          String   @id @default(uuid())
+  jobSlug     String
+  fullName    String
+  email       String
+  phone       String
+  location    String?
+  linkedIn    String?
+  yearsExp    String?
+  answers     Json
+  videoUrls   Json
+  status      String   @default("New")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobSlug])
+  @@map("careers_interview_submission")
+}
+
+model InterviewBooking {
+  id          String   @id @default(uuid())
+  jobSlug     String
+  slotStart   DateTime
+  fullName    String
+  email       String
+  phone       String
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([jobSlug, slotStart])
+  @@index([jobSlug])
+  @@map("careers_interview_booking")
+}

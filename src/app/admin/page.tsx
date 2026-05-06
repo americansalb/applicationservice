@@ -46,9 +46,24 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [view, setView] = useState<"dashboard" | "applications">("dashboard");
+  const [view, setView] = useState<"dashboard" | "applications" | "postJob">("dashboard");
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const emptyJobForm = {
+    title: "",
+    department: "",
+    location: "",
+    type: "Full-time",
+    salary: "",
+    description: "",
+    requirements: "",
+    benefits: "",
+  };
+  const [jobForm, setJobForm] = useState(emptyJobForm);
+  const [postingJob, setPostingJob] = useState(false);
+  const [jobError, setJobError] = useState("");
+  const [jobSuccess, setJobSuccess] = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem("aalb_admin_token");
@@ -104,6 +119,35 @@ export default function AdminPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setApplications(await res.json());
+  };
+
+  const submitJob = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPostingJob(true);
+    setJobError("");
+    setJobSuccess("");
+    try {
+      const res = await fetch("/api/jobs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(jobForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJobSuccess(`Job "${data.title}" posted successfully.`);
+        setJobForm(emptyJobForm);
+        fetchStats();
+      } else {
+        setJobError(data.error || "Failed to post job");
+      }
+    } catch {
+      setJobError("Connection error");
+    } finally {
+      setPostingJob(false);
+    }
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -207,6 +251,14 @@ export default function AdminPage() {
                 >
                   Applications
                 </button>
+                <button
+                  onClick={() => setView("postJob")}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === "postJob" ? "bg-teal-700 text-white" : "text-teal-300 hover:text-white"
+                  }`}
+                >
+                  Post Job
+                </button>
               </div>
             </div>
             <button
@@ -237,6 +289,14 @@ export default function AdminPage() {
             }`}
           >
             Applications
+          </button>
+          <button
+            onClick={() => setView("postJob")}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              view === "postJob" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
+            }`}
+          >
+            Post Job
           </button>
         </div>
 
@@ -416,6 +476,120 @@ export default function AdminPage() {
               Showing {filteredApplications.length} of {applications.length} applications
             </p>
           </>
+        )}
+
+        {view === "postJob" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-3xl">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Post a New Job</h2>
+            <p className="text-sm text-gray-500 mb-6">Create a new active job listing.</p>
+            <form onSubmit={submitJob} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={jobForm.title}
+                    onChange={(e) => setJobForm((f) => ({ ...f, title: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                  <input
+                    type="text"
+                    required
+                    value={jobForm.department}
+                    onChange={(e) => setJobForm((f) => ({ ...f, department: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                  <input
+                    type="text"
+                    required
+                    value={jobForm.location}
+                    onChange={(e) => setJobForm((f) => ({ ...f, location: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                  <select
+                    value={jobForm.type}
+                    onChange={(e) => setJobForm((f) => ({ ...f, type: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  >
+                    {["Full-time", "Part-time", "Contract", "Internship", "Volunteer"].map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Salary (optional)</label>
+                  <input
+                    type="text"
+                    value={jobForm.salary}
+                    onChange={(e) => setJobForm((f) => ({ ...f, salary: e.target.value }))}
+                    placeholder="e.g. $60,000 - $75,000"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea
+                  required
+                  rows={5}
+                  value={jobForm.description}
+                  onChange={(e) => setJobForm((f) => ({ ...f, description: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Requirements *</label>
+                <textarea
+                  required
+                  rows={5}
+                  value={jobForm.requirements}
+                  onChange={(e) => setJobForm((f) => ({ ...f, requirements: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Benefits (optional)</label>
+                <textarea
+                  rows={4}
+                  value={jobForm.benefits}
+                  onChange={(e) => setJobForm((f) => ({ ...f, benefits: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                />
+              </div>
+              {jobError && (
+                <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">{jobError}</p>
+              )}
+              {jobSuccess && (
+                <p className="text-green-700 text-sm bg-green-50 p-3 rounded-lg">{jobSuccess}</p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={postingJob}
+                  className="bg-teal-700 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-teal-800 transition-colors disabled:opacity-50"
+                >
+                  {postingJob ? "Posting..." : "Post Job"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setJobForm(emptyJobForm); setJobError(""); setJobSuccess(""); }}
+                  className="px-6 py-2.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     </div>

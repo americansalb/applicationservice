@@ -73,14 +73,14 @@ export default function BookingPage() {
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-green-700 text-2xl">✓</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">You're booked!</h1>
+          <h1 className="text-2xl font-bold text-gray-900">You&apos;re booked!</h1>
           <p className="text-gray-700 mt-2">
             <strong>{formatDateLabel(confirmed.date)}</strong>
             <br />
             <strong>{formatSlotLabel(confirmed.hour)}</strong> Mexico City time
           </p>
           <p className="text-gray-500 text-sm mt-4">
-            A confirmation has been sent to <strong>{form.email}</strong>. We'll
+            A confirmation has been sent to <strong>{form.email}</strong>. We&apos;ll
             email the exact location and details before your slot.
           </p>
         </div>

@@ -147,11 +147,11 @@ function IntroStep({ onContinue }: { onContinue: () => void }) {
   return (
     <div>
       <p className="text-gray-700 leading-relaxed">
-        Welcome! You've been invited to the round 2 interview for the{" "}
+        Welcome! You&apos;ve been invited to the round 2 interview for the{" "}
         <strong>Skills Lab Leader</strong> role at AALB.
       </p>
       <p className="text-gray-700 leading-relaxed mt-3">
-        This interview is self-paced. You'll be asked a few short competency
+        This interview is self-paced. You&apos;ll be asked a few short competency
         questions and can record a short video answer (and/or write a response)
         for each.
       </p>
@@ -505,7 +505,7 @@ function DoneStep({ email }: { email: string }) {
         Thanks! A confirmation has been sent to <strong>{email}</strong>.
       </p>
       <p className="text-gray-500 text-sm mt-3">
-        If you're in Mexico City, don't forget to book your in-person session
+        If you&apos;re in Mexico City, don&apos;t forget to book your in-person session
         with the separate link in your invitation email.
       </p>
     </div>

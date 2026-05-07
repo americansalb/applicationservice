@@ -4,8 +4,7 @@ import { getPool, resetPool } from "@/lib/pg";
 import { isConnectivityError, withDbRetry } from "@/lib/dbRetry";
 import { sendEmail } from "@/lib/email";
 import {
-  BOOKING_DATES,
-  BOOKING_HOURS,
+  isValidSlot,
   SKILLS_LAB_LEADER_BOOKING_SLUG,
   formatDateLabel,
   formatSlotLabel,
@@ -51,6 +50,7 @@ export async function POST(req: NextRequest) {
   const notes = typeof body.notes === "string" ? body.notes.trim() || null : null;
   const dateIso = String(body.date || "");
   const hour = Number(body.hour);
+  const minute = Number(body.minute) || 0;
 
   if (!fullName || !email || !phone) {
     return NextResponse.json(
@@ -58,14 +58,11 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!BOOKING_DATES.includes(dateIso)) {
-    return NextResponse.json({ error: "Invalid date" }, { status: 400 });
-  }
-  if (!BOOKING_HOURS.includes(hour)) {
+  if (!isValidSlot(dateIso, hour, minute)) {
     return NextResponse.json({ error: "Invalid time slot" }, { status: 400 });
   }
 
-  const slotStart = slotToUtc(dateIso, hour);
+  const slotStart = slotToUtc(dateIso, hour, minute);
   const id = crypto.randomUUID();
 
   try {
@@ -88,7 +85,7 @@ export async function POST(req: NextRequest) {
         "AALB Skills Lab Leader — In-Person Interview Confirmed (Mexico City)",
         `<p>Hi ${escapeHtml(fullName)},</p>
          <p>Your <strong>in-person</strong> interview for the <strong>Skills Lab Leader</strong> role is confirmed.</p>
-         <p style="font-size:16px;"><strong>${formatDateLabel(dateIso)} at ${formatSlotLabel(hour)}</strong><br/>
+         <p style="font-size:16px;"><strong>${formatDateLabel(dateIso)} at ${formatSlotLabel(hour, minute)}</strong><br/>
          <em>Mexico City local time · in person</em></p>
          <p style="margin:18px 0;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;">
            <strong style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#0f766e;">Where to go</strong>

@@ -167,6 +167,34 @@ export default function AdminPage() {
     if (res.ok) setBookings(await res.json());
   };
 
+  const cancelBooking = async (b: InterviewBooking) => {
+    const when = new Date(b.slotStart).toLocaleString("en-US", {
+      timeZone: "America/Mexico_City",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    if (
+      !window.confirm(
+        `Cancel ${b.fullName}'s booking on ${when}?\n\nThis frees up the slot. The candidate is NOT automatically notified.`
+      )
+    ) {
+      return;
+    }
+    const res = await fetch(`/api/admin/bookings/${b.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(data.error || "Cancel failed");
+      return;
+    }
+    setBookings((prev) => prev.filter((x) => x.id !== b.id));
+  };
+
   const submitJob = async (e: React.FormEvent) => {
     e.preventDefault();
     setPostingJob(true);
@@ -755,6 +783,7 @@ export default function AdminPage() {
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Candidate</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Contact</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Notes</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -776,6 +805,15 @@ export default function AdminPage() {
                         <div className="text-xs text-gray-500">{b.phone}</div>
                       </td>
                       <td className="px-6 py-4 text-gray-600 whitespace-pre-wrap">{b.notes || "—"}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => cancelBooking(b)}
+                          className="px-3 py-1.5 rounded-md text-xs font-semibold text-red-700 border border-red-200 hover:bg-red-50"
+                        >
+                          Cancel
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -14,9 +14,9 @@ export function getPool() {
     const p = new Pool({
       connectionString,
       ssl,
-      connectionTimeoutMillis: 10_000,
-      query_timeout: 30_000,
-      statement_timeout: 30_000,
+      connectionTimeoutMillis: 5_000,
+      query_timeout: 15_000,
+      statement_timeout: 15_000,
       idleTimeoutMillis: 30_000,
     });
     // Without a listener, an idle client error throws and leaves the

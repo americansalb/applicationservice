@@ -1,34 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getPartnersPool, resetPartnersPool } from "@/lib/partnersDb";
+import { isConnectivityError, withDbRetry } from "@/lib/dbRetry";
 import { signPartnerToken } from "@/lib/partnersAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
 
-function isConnectivityError(e: unknown) {
-  const code = (e as { code?: string } | null)?.code;
-  const msg = e instanceof Error ? e.message : "";
-  return (
-    code === "ENOTFOUND" ||
-    code === "ECONNREFUSED" ||
-    code === "ETIMEDOUT" ||
-    code === "ECONNRESET" ||
-    code === "EPIPE" ||
-    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EPIPE|getaddrinfo|terminat|Connection terminated/i.test(msg)
-  );
-}
-
-async function queryWithRetry<T>(fn: (pool: ReturnType<typeof getPartnersPool>) => Promise<T>): Promise<T> {
-  try {
-    return await fn(getPartnersPool());
-  } catch (err) {
-    if (!isConnectivityError(err)) throw err;
-    console.warn("[partner login] connectivity error, resetting pool and retrying:", (err as Error).message);
-    resetPartnersPool();
-    return await fn(getPartnersPool());
-  }
+function queryWithRetry<T>(fn: (pool: ReturnType<typeof getPartnersPool>) => Promise<T>): Promise<T> {
+  return withDbRetry("partner.login", () => fn(getPartnersPool()), () => resetPartnersPool());
 }
 
 export async function POST(req: NextRequest) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getPool, resetPool } from "@/lib/pg";
+import { isConnectivityError, withDbRetry } from "@/lib/dbRetry";
 import { sendEmail } from "@/lib/email";
 import {
   BOOKING_DATES,
@@ -13,33 +14,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function isConnectivityError(e: unknown) {
-  const code = (e as { code?: string } | null)?.code;
-  const msg = e instanceof Error ? e.message : "";
-  return (
-    code === "ENOTFOUND" ||
-    code === "ECONNREFUSED" ||
-    code === "ETIMEDOUT" ||
-    code === "ECONNRESET" ||
-    code === "EPIPE" ||
-    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EPIPE|getaddrinfo|terminat|Connection terminated|Can't reach database server|DatabaseNotReachable/i.test(msg)
-  );
-}
-
-async function queryWithRetry<T>(fn: (pool: ReturnType<typeof getPool>) => Promise<T>): Promise<T> {
-  try {
-    return await fn(getPool());
-  } catch (err) {
-    if (!isConnectivityError(err)) throw err;
-    console.warn("[bookings] connectivity error, resetting pool and retrying:", (err as Error).message);
-    resetPool();
-    return await fn(getPool());
-  }
+function queryWithRetry<T>(label: string, fn: (pool: ReturnType<typeof getPool>) => Promise<T>): Promise<T> {
+  return withDbRetry(label, () => fn(getPool()), () => resetPool());
 }
 
 export async function GET() {
   try {
-    const result = await queryWithRetry((pool) => pool.query<{ slotStart: Date }>(
+    const result = await queryWithRetry("bookings.GET", (pool) => pool.query<{ slotStart: Date }>(
       `SELECT "slotStart" FROM "careers_interview_booking" WHERE "jobSlug" = $1`,
       [SKILLS_LAB_LEADER_BOOKING_SLUG]
     ));
@@ -88,7 +69,7 @@ export async function POST(req: NextRequest) {
   const id = crypto.randomUUID();
 
   try {
-    await queryWithRetry((pool) => pool.query(
+    await queryWithRetry("bookings.POST", (pool) => pool.query(
       `INSERT INTO "careers_interview_booking"
          ("id", "jobSlug", "slotStart", "fullName", "email", "phone", "notes", "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
@@ -98,12 +79,14 @@ export async function POST(req: NextRequest) {
     try {
       await sendEmail(
         email,
-        "AALB Skills Lab Leader — In-Person Interview Confirmed",
+        "AALB Skills Lab Leader — In-Person Interview Confirmed (Mexico City)",
         `<p>Hi ${escapeHtml(fullName)},</p>
-         <p>Your in-person interview for the <strong>Skills Lab Leader</strong> role is confirmed for:</p>
-         <p><strong>${formatDateLabel(dateIso)} at ${formatSlotLabel(hour)} (Mexico City time)</strong></p>
-         <p>We'll send you the exact location and any additional details by email closer to your slot.</p>
-         <p>If you need to reschedule, reply to this email.</p>
+         <p>Your <strong>in-person</strong> interview for the <strong>Skills Lab Leader</strong> role is confirmed.</p>
+         <p style="font-size:16px;"><strong>${formatDateLabel(dateIso)} at ${formatSlotLabel(hour)}</strong><br/>
+         <em>Mexico City local time · in person</em></p>
+         <p><strong>Please arrive on time.</strong> This is a 1-hour slot — plan to arrive a few minutes early. Mexico City traffic can be unpredictable, so give yourself extra buffer. We may not be able to accommodate late arrivals on the same day.</p>
+         <p>We'll email the exact location and any final details closer to your slot.</p>
+         <p>If you need to reschedule or can no longer attend, reply to this email as soon as you can.</p>
          <p>— AALB Hiring Team</p>`
       );
     } catch (e) {

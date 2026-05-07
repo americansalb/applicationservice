@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { sslConfigForUrl } from "./dbSsl";
 
 let pool: Pool | null = null;
 
@@ -8,9 +9,7 @@ export function getPool() {
     if (!connectionString) {
       throw new Error("DATABASE_URL not set");
     }
-    const ssl = connectionString.includes("sslmode=")
-      ? { rejectUnauthorized: false }
-      : false;
+    const ssl = sslConfigForUrl(connectionString);
     const p = new Pool({
       connectionString,
       ssl,

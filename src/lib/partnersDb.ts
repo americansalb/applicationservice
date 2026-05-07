@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { sslConfigForUrl } from "./dbSsl";
 
 export * from "./partnersSchema";
 
@@ -10,9 +11,7 @@ export function getPartnersPool() {
     if (!connectionString) {
       throw new Error("PARTNERS_DATABASE_URL is not set");
     }
-    const ssl = connectionString.includes("sslmode=")
-      ? { rejectUnauthorized: false }
-      : false;
+    const ssl = sslConfigForUrl(connectionString);
     const p = new Pool({
       connectionString,
       ssl,

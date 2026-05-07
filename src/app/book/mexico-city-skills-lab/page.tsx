@@ -107,25 +107,6 @@ export default function BookingPage() {
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-10 sm:py-14">
         <Header />
 
-        {step !== "done" && (
-          <a
-            href="/interview/skills-lab-leader"
-            className="block mb-6 rounded-2xl border-2 border-teal-700 bg-teal-50 px-5 py-4 text-teal-900 hover:bg-teal-100 transition-colors"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-semibold text-base sm:text-lg">
-                  I am unable to make it in-person to Mexico City, I would like to schedule a virtual interview
-                </p>
-                <p className="text-sm text-teal-800 mt-1">
-                  Click here to switch to a video interview instead.
-                </p>
-              </div>
-              <span className="text-2xl flex-shrink-0">→</span>
-            </div>
-          </a>
-        )}
-
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           <Stepper step={step} />
 
@@ -170,6 +151,21 @@ export default function BookingPage() {
         <p className="text-center text-xs text-stone-500 mt-6">
           Need to reschedule after booking? Reply to your confirmation email.
         </p>
+
+        {step !== "done" && (
+          <a
+            href="/interview/skills-lab-leader"
+            className="block mt-8 rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-700 hover:bg-stone-100 hover:border-stone-300 transition-colors"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm">
+                Can&apos;t make it to Mexico City?{" "}
+                <span className="font-medium text-stone-900">Schedule a virtual interview instead.</span>
+              </p>
+              <span className="text-stone-400 flex-shrink-0">→</span>
+            </div>
+          </a>
+        )}
       </div>
     </div>
   );

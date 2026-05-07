@@ -1,9 +1,32 @@
 const { spawn } = require("child_process");
-const { readFileSync } = require("fs");
+const { readFileSync, readdirSync, statSync } = require("fs");
 const { Pool } = require("pg");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+
+function readMigrationsInOrder(migrationsDir) {
+  const entries = readdirSync(migrationsDir)
+    .filter((name) => {
+      const full = path.join(migrationsDir, name);
+      try {
+        return statSync(full).isDirectory();
+      } catch {
+        return false;
+      }
+    })
+    .sort();
+  return entries
+    .map((name) => path.join(migrationsDir, name, "migration.sql"))
+    .filter((p) => {
+      try {
+        return statSync(p).isFile();
+      } catch {
+        return false;
+      }
+    })
+    .map((p) => ({ file: p, sql: readFileSync(p, "utf8") }));
+}
 
 const port = process.env.PORT || 3000;
 
@@ -32,11 +55,13 @@ async function setupCareers() {
     console.log("[careers] Connecting...");
     await pool.query("SELECT 1");
 
-    const migrationSQL = readFileSync(
-      path.join(__dirname, "prisma", "migrations", "0_init", "migration.sql"),
-      "utf8"
+    const migrations = readMigrationsInOrder(
+      path.join(__dirname, "prisma", "migrations")
     );
-    await pool.query(migrationSQL);
+    for (const { file, sql } of migrations) {
+      console.log(`[careers] Applying ${path.basename(path.dirname(file))}...`);
+      await pool.query(sql);
+    }
 
     await pool.query(
       `DELETE FROM "careers_admin_user" WHERE "email" = 'admin@aalb.org'`
@@ -72,17 +97,13 @@ async function setupPartners() {
     console.log("[partners] Connecting...");
     await pool.query("SELECT 1");
 
-    const migrationSQL = readFileSync(
-      path.join(
-        __dirname,
-        "prisma",
-        "partners_migrations",
-        "0_init",
-        "migration.sql"
-      ),
-      "utf8"
+    const migrations = readMigrationsInOrder(
+      path.join(__dirname, "prisma", "partners_migrations")
     );
-    await pool.query(migrationSQL);
+    for (const { file, sql } of migrations) {
+      console.log(`[partners] Applying ${path.basename(path.dirname(file))}...`);
+      await pool.query(sql);
+    }
     console.log("[partners] Tables created/verified.");
 
     const pAdminEmail = process.env.ADMIN_EMAIL || "contact@aalb.org";

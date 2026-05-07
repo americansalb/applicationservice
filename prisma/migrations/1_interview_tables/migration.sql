@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "careers_interview_submission" (
+CREATE TABLE IF NOT EXISTS "careers_interview_submission" (
     "id" TEXT NOT NULL,
     "jobSlug" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE "careers_interview_submission" (
 );
 
 -- CreateTable
-CREATE TABLE "careers_interview_booking" (
+CREATE TABLE IF NOT EXISTS "careers_interview_booking" (
     "id" TEXT NOT NULL,
     "jobSlug" TEXT NOT NULL,
     "slotStart" TIMESTAMP(3) NOT NULL,
@@ -32,10 +32,10 @@ CREATE TABLE "careers_interview_booking" (
 );
 
 -- CreateIndex
-CREATE INDEX "careers_interview_submission_jobSlug_idx" ON "careers_interview_submission"("jobSlug");
+CREATE INDEX IF NOT EXISTS "careers_interview_submission_jobSlug_idx" ON "careers_interview_submission"("jobSlug");
 
 -- CreateIndex
-CREATE INDEX "careers_interview_booking_jobSlug_idx" ON "careers_interview_booking"("jobSlug");
+CREATE INDEX IF NOT EXISTS "careers_interview_booking_jobSlug_idx" ON "careers_interview_booking"("jobSlug");
 
 -- CreateUniqueIndex
-CREATE UNIQUE INDEX "careers_interview_booking_jobSlug_slotStart_key" ON "careers_interview_booking"("jobSlug", "slotStart");
+CREATE UNIQUE INDEX IF NOT EXISTS "careers_interview_booking_jobSlug_slotStart_key" ON "careers_interview_booking"("jobSlug", "slotStart");

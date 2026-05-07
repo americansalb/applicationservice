@@ -28,8 +28,14 @@ export default function BookingPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/bookings/mexico-city-skills-lab");
-      const data = await res.json();
+      if (!res.ok) {
+        setTaken(new Set());
+        return;
+      }
+      const data = await res.json().catch(() => ({ taken: [] }));
       setTaken(new Set(data.taken || []));
+    } catch {
+      setTaken(new Set());
     } finally {
       setLoading(false);
     }

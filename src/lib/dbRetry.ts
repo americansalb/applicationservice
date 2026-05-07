@@ -11,7 +11,7 @@ export function isConnectivityError(e: unknown) {
   );
 }
 
-const BACKOFFS_MS = [200, 500, 1200];
+const BACKOFFS_MS = [150, 300, 600, 1000, 1500];
 
 export async function withDbRetry<T>(
   label: string,

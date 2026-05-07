@@ -16,9 +16,13 @@ export function getPartnersPool() {
     const p = new Pool({
       connectionString,
       ssl,
-      connectionTimeoutMillis: 10_000,
-      query_timeout: 30_000,
-      statement_timeout: 30_000,
+      // @ts-expect-error: pg accepts `family` but its types don't expose it.
+      family: 4,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
+      query_timeout: 15_000,
+      statement_timeout: 15_000,
       idleTimeoutMillis: 30_000,
     });
     p.on("error", (err: Error) => {

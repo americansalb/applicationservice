@@ -14,13 +14,20 @@ export function getPool() {
     const p = new Pool({
       connectionString,
       ssl,
+      // Force IPv4 DNS resolution. Render's internal hostnames
+      // (dpg-XXXX-a, no .com) sometimes return AAAA records that the
+      // web service's network can't actually reach, which surfaces as
+      // intermittent "Can't reach database server" errors. IPv4 is
+      // reliable inside Render's private network.
+      // @ts-expect-error: pg accepts `family` but its types don't expose it.
+      family: 4,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10_000,
       connectionTimeoutMillis: 5_000,
       query_timeout: 15_000,
       statement_timeout: 15_000,
       idleTimeoutMillis: 30_000,
     });
-    // Without a listener, an idle client error throws and leaves the
-    // module-cached pool in a broken state for every subsequent request.
     p.on("error", (err: Error) => {
       console.error("[pg] idle client error, resetting pool:", err.message);
       if (pool === p) pool = null;

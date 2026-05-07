@@ -11,7 +11,28 @@ export function getPool() {
     const ssl = connectionString.includes("sslmode=")
       ? { rejectUnauthorized: false }
       : false;
-    pool = new Pool({ connectionString, ssl });
+    const p = new Pool({
+      connectionString,
+      ssl,
+      connectionTimeoutMillis: 10_000,
+      query_timeout: 30_000,
+      statement_timeout: 30_000,
+      idleTimeoutMillis: 30_000,
+    });
+    // Without a listener, an idle client error throws and leaves the
+    // module-cached pool in a broken state for every subsequent request.
+    p.on("error", (err: Error) => {
+      console.error("[pg] idle client error, resetting pool:", err.message);
+      if (pool === p) pool = null;
+      p.end().catch(() => {});
+    });
+    pool = p;
   }
   return pool;
+}
+
+export function resetPool() {
+  const p = pool;
+  pool = null;
+  if (p) p.end().catch(() => {});
 }

@@ -1,11 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getPartnersPool } from "@/lib/partnersDb";
+import { getPartnersPool, resetPartnersPool } from "@/lib/partnersDb";
 import { signPartnerToken } from "@/lib/partnersAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/auditLog";
 
 export const dynamic = "force-dynamic";
+
+function isConnectivityError(e: unknown) {
+  const code = (e as { code?: string } | null)?.code;
+  const msg = e instanceof Error ? e.message : "";
+  return (
+    code === "ENOTFOUND" ||
+    code === "ECONNREFUSED" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "EPIPE" ||
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EPIPE|getaddrinfo|terminat|Connection terminated/i.test(msg)
+  );
+}
+
+async function queryWithRetry<T>(fn: (pool: ReturnType<typeof getPartnersPool>) => Promise<T>): Promise<T> {
+  try {
+    return await fn(getPartnersPool());
+  } catch (err) {
+    if (!isConnectivityError(err)) throw err;
+    console.warn("[partner login] connectivity error, resetting pool and retrying:", (err as Error).message);
+    resetPartnersPool();
+    return await fn(getPartnersPool());
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,13 +50,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pool = getPartnersPool();
-
     // Try admin first, then partner
-    const adminRes = await pool.query(
+    const adminRes = await queryWithRetry((pool) => pool.query(
       `SELECT "id", "email", "password", "name" FROM "partners_admin_user" WHERE "email" = $1 LIMIT 1`,
       [email]
-    );
+    ));
     if (adminRes.rows.length > 0) {
       const admin = adminRes.rows[0];
       const valid = await bcrypt.compare(password, admin.password);
@@ -52,14 +74,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const partnerRes = await pool.query(
+    const partnerRes = await queryWithRetry((pool) => pool.query(
       `SELECT u."id", u."email", u."password", u."name", u."organizationId",
               o."name" as "organizationName"
        FROM "partners_user" u
        JOIN "partners_organization" o ON o."id" = u."organizationId"
        WHERE u."email" = $1 LIMIT 1`,
       [email]
-    );
+    ));
     if (partnerRes.rows.length === 0) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
@@ -90,20 +112,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("partner login error:", e);
-    const code = (e as { code?: string } | null)?.code;
-    const msg = e instanceof Error ? e.message : "";
-    const isConnectivity =
-      code === "ENOTFOUND" ||
-      code === "ECONNREFUSED" ||
-      code === "ETIMEDOUT" ||
-      /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(msg);
+    const connectivity = isConnectivityError(e);
     return NextResponse.json(
       {
-        error: isConnectivity
+        error: connectivity
           ? "Service temporarily unavailable. Please try again shortly."
           : "Login failed",
       },
-      { status: isConnectivity ? 503 : 500 }
+      { status: connectivity ? 503 : 500 }
     );
   }
 }

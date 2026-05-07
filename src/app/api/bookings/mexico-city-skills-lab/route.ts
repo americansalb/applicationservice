@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import crypto from "crypto";
+import { getPool, resetPool } from "@/lib/pg";
 import { sendEmail } from "@/lib/email";
 import {
   BOOKING_DATES,
@@ -12,14 +13,38 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function isConnectivityError(e: unknown) {
+  const code = (e as { code?: string } | null)?.code;
+  const msg = e instanceof Error ? e.message : "";
+  return (
+    code === "ENOTFOUND" ||
+    code === "ECONNREFUSED" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "EPIPE" ||
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EPIPE|getaddrinfo|terminat|Connection terminated|Can't reach database server|DatabaseNotReachable/i.test(msg)
+  );
+}
+
+async function queryWithRetry<T>(fn: (pool: ReturnType<typeof getPool>) => Promise<T>): Promise<T> {
+  try {
+    return await fn(getPool());
+  } catch (err) {
+    if (!isConnectivityError(err)) throw err;
+    console.warn("[bookings] connectivity error, resetting pool and retrying:", (err as Error).message);
+    resetPool();
+    return await fn(getPool());
+  }
+}
+
 export async function GET() {
   try {
-    const bookings = await prisma.interviewBooking.findMany({
-      where: { jobSlug: SKILLS_LAB_LEADER_BOOKING_SLUG },
-      select: { slotStart: true },
-    });
-    const taken = bookings
-      .map((b) => b.slotStart)
+    const result = await queryWithRetry((pool) => pool.query<{ slotStart: Date }>(
+      `SELECT "slotStart" FROM "careers_interview_booking" WHERE "jobSlug" = $1`,
+      [SKILLS_LAB_LEADER_BOOKING_SLUG]
+    ));
+    const taken = result.rows
+      .map((r) => r.slotStart)
       .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
       .map((d) => d.toISOString());
     return NextResponse.json({ taken });
@@ -60,18 +85,15 @@ export async function POST(req: NextRequest) {
   }
 
   const slotStart = slotToUtc(dateIso, hour);
+  const id = crypto.randomUUID();
 
   try {
-    const booking = await prisma.interviewBooking.create({
-      data: {
-        jobSlug: SKILLS_LAB_LEADER_BOOKING_SLUG,
-        slotStart,
-        fullName,
-        email,
-        phone,
-        notes,
-      },
-    });
+    await queryWithRetry((pool) => pool.query(
+      `INSERT INTO "careers_interview_booking"
+         ("id", "jobSlug", "slotStart", "fullName", "email", "phone", "notes", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [id, SKILLS_LAB_LEADER_BOOKING_SLUG, slotStart, fullName, email, phone, notes]
+    ));
 
     try {
       await sendEmail(
@@ -88,16 +110,24 @@ export async function POST(req: NextRequest) {
       console.error("Failed to send booking confirmation:", e);
     }
 
-    return NextResponse.json({ id: booking.id, ok: true }, { status: 201 });
+    return NextResponse.json({ id, ok: true }, { status: 201 });
   } catch (e: unknown) {
+    // pg unique-violation = 23505 (matches the
+    // careers_interview_booking_jobSlug_slotStart_key constraint)
     const code = (e as { code?: string })?.code;
-    if (code === "P2002") {
+    if (code === "23505") {
       return NextResponse.json(
         { error: "That slot was just taken. Please pick another." },
         { status: 409 }
       );
     }
     console.error("Booking error:", e);
+    if (isConnectivityError(e)) {
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please try again shortly." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: "Booking failed" }, { status: 500 });
   }
 }

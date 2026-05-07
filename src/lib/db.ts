@@ -15,7 +15,18 @@ function createPrismaClient() {
   const ssl = connectionString.includes("sslmode=")
     ? { rejectUnauthorized: false }
     : false;
-  const pool = new pg.Pool({ connectionString, ssl });
+  const pool = new pg.Pool({
+    connectionString,
+    ssl,
+    // @ts-expect-error: pg accepts `family` but its types don't expose it.
+    family: 4,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
+    query_timeout: 15_000,
+    statement_timeout: 15_000,
+    idleTimeoutMillis: 30_000,
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }

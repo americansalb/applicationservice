@@ -38,6 +38,11 @@ function createPool(connectionString) {
   return new Pool({
     connectionString,
     ssl,
+    // Force IPv4 — Render's internal hostnames sometimes return AAAA
+    // records that the web service's network can't reach.
+    family: 4,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
     connectionTimeoutMillis: 10_000,
     query_timeout: 30_000,
     statement_timeout: 30_000,

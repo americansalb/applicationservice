@@ -880,7 +880,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {activeView === "bookings" && (
+        {view === "bookings" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>

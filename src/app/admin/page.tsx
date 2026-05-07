@@ -119,6 +119,11 @@ export default function AdminPage() {
     fetchInterviews();
     fetchBookings();
     fetchVirtualRequests();
+    const interval = setInterval(() => {
+      fetchBookings();
+      fetchVirtualRequests();
+    }, 15_000);
+    return () => clearInterval(interval);
   }, [token]);
 
   const handleLogin = async (e: React.FormEvent) => {

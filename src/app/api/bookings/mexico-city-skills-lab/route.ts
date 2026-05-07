@@ -77,6 +77,12 @@ export async function POST(req: NextRequest) {
     ));
 
     try {
+      const venueName = "Cultumkali Cafe";
+      const venueAddress =
+        "Av. Universidad 457-Local C, Narvarte Poniente, Benito Juárez, 03020 Ciudad de México, CDMX";
+      const mapsUrl =
+        "https://www.google.com/maps/search/?api=1&query=" +
+        encodeURIComponent(`${venueName}, ${venueAddress}`);
       await sendEmail(
         email,
         "AALB Skills Lab Leader — In-Person Interview Confirmed (Mexico City)",
@@ -84,9 +90,14 @@ export async function POST(req: NextRequest) {
          <p>Your <strong>in-person</strong> interview for the <strong>Skills Lab Leader</strong> role is confirmed.</p>
          <p style="font-size:16px;"><strong>${formatDateLabel(dateIso)} at ${formatSlotLabel(hour)}</strong><br/>
          <em>Mexico City local time · in person</em></p>
+         <p style="margin:18px 0;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;">
+           <strong style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#0f766e;">Where to go</strong>
+           <strong style="display:block;font-size:16px;color:#134e4a;margin-top:4px;">${venueName}</strong>
+           <span style="display:block;color:#115e59;">${escapeHtml(venueAddress)}</span>
+           <a href="${mapsUrl}" style="display:inline-block;margin-top:8px;color:#0f766e;font-weight:600;">Open in Google Maps →</a>
+         </p>
          <p><strong>Please arrive on time.</strong> This is a 1-hour slot — plan to arrive a few minutes early. Mexico City traffic can be unpredictable, so give yourself extra buffer. We may not be able to accommodate late arrivals on the same day.</p>
-         <p>We'll email the exact location and any final details closer to your slot.</p>
-         <p>If you need to reschedule or can no longer attend, reply to this email as soon as you can.</p>
+         <p>If you need to reschedule or can no longer attend, reply to this email as soon as you can. We have your phone number on file in case we need to reach you on the day.</p>
          <p>— AALB Hiring Team</p>`
       );
     } catch (e) {

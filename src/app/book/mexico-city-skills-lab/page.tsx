@@ -152,12 +152,20 @@ function Header() {
         Book your Skills Lab Leader interview
       </h1>
       <p className="text-gray-600 mt-3 max-w-xl mx-auto">
-        This is an <strong>in-person</strong> interview held in Mexico City on
-        May 7–9. All times below are shown in <strong>Mexico City local time</strong>.
+        This is an <strong>in-person</strong> interview at{" "}
+        <strong>Cultumkali Cafe</strong> in Mexico City on May 7–9. All times
+        below are shown in <strong>Mexico City local time</strong>.
       </p>
     </div>
   );
 }
+
+const VENUE_NAME = "Cultumkali Cafe";
+const VENUE_ADDRESS =
+  "Av. Universidad 457-Local C, Narvarte Poniente, Benito Juárez, 03020 Ciudad de México, CDMX";
+const VENUE_MAPS_URL =
+  "https://www.google.com/maps/search/?api=1&query=" +
+  encodeURIComponent(`${VENUE_NAME}, ${VENUE_ADDRESS}`);
 
 function Stepper({ step }: { step: Step }) {
   const steps: { id: Step; label: string }[] = [
@@ -223,6 +231,22 @@ function SlotStep({
   }
   return (
     <div>
+      <div className="mb-5 bg-teal-50 border-2 border-teal-200 rounded-xl p-5">
+        <p className="text-xs uppercase font-bold tracking-wider text-teal-700">
+          You&apos;re booking an in-person interview at
+        </p>
+        <p className="text-xl font-extrabold text-teal-900 mt-1">{VENUE_NAME}</p>
+        <p className="text-sm text-teal-800 mt-0.5">{VENUE_ADDRESS}</p>
+        <a
+          href={VENUE_MAPS_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-block mt-2 text-sm font-semibold text-teal-700 underline"
+        >
+          Open in Google Maps →
+        </a>
+      </div>
+
       {loadFailed && (
         <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start justify-between gap-3">
           <p className="text-sm text-amber-900">
@@ -239,7 +263,7 @@ function SlotStep({
         </div>
       )}
       <p className="text-sm text-gray-600 mb-4">
-        Pick a date and a 1-hour slot. All times are Mexico City local time.
+        Pick a date and a 1-hour slot below. All times are Mexico City local time.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {BOOKING_DATES.map((date) => (
@@ -343,8 +367,23 @@ function InfoStep({
           {formatDateLabel(selected.date)} · {formatSlotLabel(selected.hour)}
         </p>
         <p className="text-sm text-teal-800 mt-1">
-          In-person, Mexico City local time
+          In-person · Mexico City local time
         </p>
+        <div className="mt-3 pt-3 border-t border-teal-200">
+          <p className="text-xs uppercase font-bold tracking-wide text-teal-700">
+            Where
+          </p>
+          <p className="text-sm font-bold text-teal-900 mt-1">{VENUE_NAME}</p>
+          <p className="text-sm text-teal-800">{VENUE_ADDRESS}</p>
+          <a
+            href={VENUE_MAPS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block mt-1 text-sm font-medium text-teal-700 underline"
+          >
+            Open in Google Maps →
+          </a>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -429,18 +468,34 @@ function DoneStep({ selected, email }: { selected: Slot; email: string }) {
         <br />
         <strong>{formatSlotLabel(selected.hour)}</strong> · Mexico City local time
       </p>
-      <div className="mt-6 max-w-md mx-auto space-y-3 text-sm text-gray-600">
+
+      <div className="mt-5 max-w-md mx-auto bg-teal-50 border-2 border-teal-200 rounded-xl p-4 text-left">
+        <p className="text-xs uppercase font-bold tracking-wider text-teal-700">
+          Where to go
+        </p>
+        <p className="text-lg font-extrabold text-teal-900 mt-1">{VENUE_NAME}</p>
+        <p className="text-sm text-teal-800">{VENUE_ADDRESS}</p>
+        <a
+          href={VENUE_MAPS_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-block mt-2 text-sm font-semibold text-teal-700 underline"
+        >
+          Open in Google Maps →
+        </a>
+      </div>
+
+      <div className="mt-5 max-w-md mx-auto space-y-3 text-sm text-gray-600">
         <p>
-          A confirmation has been sent to <strong>{email}</strong>. We&apos;ll
-          email the exact location and any final details before your slot.
+          A confirmation has been sent to <strong>{email}</strong>.
         </p>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-900 text-left">
           <p className="font-semibold">Please be on time.</p>
           <p className="mt-1">
-            This is a 1-hour in-person interview. Plan to arrive a few minutes
-            early — Mexico City traffic can be unpredictable. If you&apos;re
-            running late or need to reschedule, reply to your confirmation
-            email as soon as you can.
+            This is a 1-hour in-person interview at Cultumkali Cafe. Plan to
+            arrive a few minutes early — Mexico City traffic can be
+            unpredictable. If you&apos;re running late or need to reschedule,
+            reply to your confirmation email as soon as you can.
           </p>
         </div>
       </div>

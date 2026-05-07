@@ -55,6 +55,17 @@ interface InterviewBooking {
   createdAt: string;
 }
 
+interface VirtualRequest {
+  id: string;
+  jobSlug: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  notes: string | null;
+  contactedAt: string | null;
+  createdAt: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   New: "bg-blue-100 text-blue-700",
   Reviewing: "bg-yellow-100 text-yellow-700",
@@ -74,6 +85,7 @@ export default function AdminPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [interviews, setInterviews] = useState<InterviewSubmission[]>([]);
   const [bookings, setBookings] = useState<InterviewBooking[]>([]);
+  const [virtualRequests, setVirtualRequests] = useState<VirtualRequest[]>([]);
   const [view, setView] = useState<
     "dashboard" | "applications" | "postJob" | "interviews" | "bookings"
   >("dashboard");
@@ -106,6 +118,7 @@ export default function AdminPage() {
     fetchApplications();
     fetchInterviews();
     fetchBookings();
+    fetchVirtualRequests();
   }, [token]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -165,6 +178,51 @@ export default function AdminPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setBookings(await res.json());
+  };
+
+  const fetchVirtualRequests = async () => {
+    const res = await fetch("/api/admin/virtual-interview-requests", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setVirtualRequests(await res.json());
+  };
+
+  const toggleVirtualContacted = async (r: VirtualRequest) => {
+    const next = !r.contactedAt;
+    const res = await fetch(`/api/admin/virtual-interview-requests/${r.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ contacted: next }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(data.error || "Update failed");
+      return;
+    }
+    setVirtualRequests((prev) =>
+      prev.map((x) =>
+        x.id === r.id
+          ? { ...x, contactedAt: next ? new Date().toISOString() : null }
+          : x
+      )
+    );
+  };
+
+  const deleteVirtualRequest = async (r: VirtualRequest) => {
+    if (!window.confirm(`Delete virtual interview request from ${r.fullName}?`)) return;
+    const res = await fetch(`/api/admin/virtual-interview-requests/${r.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(data.error || "Delete failed");
+      return;
+    }
+    setVirtualRequests((prev) => prev.filter((x) => x.id !== r.id));
   };
 
   const cancelBooking = async (b: InterviewBooking) => {
@@ -812,6 +870,85 @@ export default function AdminPage() {
                           className="px-3 py-1.5 rounded-md text-xs font-semibold text-red-700 border border-red-200 hover:bg-red-50"
                         >
                           Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {activeView === "bookings" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Virtual Interview Requests</h2>
+                <p className="text-sm text-gray-500">
+                  Candidates who can&apos;t make it in-person and want to be contacted for a video interview.
+                </p>
+              </div>
+              <span className="text-sm text-gray-400">
+                {virtualRequests.filter((r) => !r.contactedAt).length} pending · {virtualRequests.length} total
+              </span>
+            </div>
+            {virtualRequests.length === 0 ? (
+              <p className="px-6 py-10 text-center text-gray-400">No requests yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Submitted</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Candidate</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Contact</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Notes</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {virtualRequests.map((r) => (
+                    <tr key={r.id} className={`hover:bg-gray-50 ${r.contactedAt ? "opacity-60" : ""}`}>
+                      <td className="px-6 py-4">
+                        {r.contactedAt ? (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
+                            Contacted
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">
+                            Pending
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 text-xs">
+                        {new Date(r.createdAt).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{r.fullName}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <div>{r.email}</div>
+                        {r.phone && <div className="text-xs text-gray-500">{r.phone}</div>}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 whitespace-pre-wrap">{r.notes || "—"}</td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => toggleVirtualContacted(r)}
+                          className="px-3 py-1.5 rounded-md text-xs font-semibold text-stone-700 border border-stone-200 hover:bg-stone-50 mr-2"
+                        >
+                          {r.contactedAt ? "Mark pending" : "Mark contacted"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteVirtualRequest(r)}
+                          className="px-3 py-1.5 rounded-md text-xs font-semibold text-red-700 border border-red-200 hover:bg-red-50"
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>

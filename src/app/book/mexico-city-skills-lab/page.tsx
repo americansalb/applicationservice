@@ -33,6 +33,40 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const [virtualOpen, setVirtualOpen] = useState(false);
+  const [virtualForm, setVirtualForm] = useState({ fullName: "", email: "", phone: "", notes: "" });
+  const [virtualSubmitting, setVirtualSubmitting] = useState(false);
+  const [virtualError, setVirtualError] = useState("");
+  const [virtualDone, setVirtualDone] = useState(false);
+
+  const virtualValid =
+    virtualForm.fullName.trim() &&
+    virtualForm.email.trim() &&
+    /\S+@\S+\.\S+/.test(virtualForm.email);
+
+  const submitVirtual = async () => {
+    if (!virtualValid) return;
+    setVirtualSubmitting(true);
+    setVirtualError("");
+    try {
+      const res = await fetch("/api/virtual-interview-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(virtualForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setVirtualError(data.error || "Submit failed. Please try again.");
+        return;
+      }
+      setVirtualDone(true);
+    } catch {
+      setVirtualError("Network error. Please try again.");
+    } finally {
+      setVirtualSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     refreshTaken();
   }, []);
@@ -153,18 +187,193 @@ export default function BookingPage() {
         </p>
 
         {step !== "done" && (
-          <a
-            href="/interview/skills-lab-leader"
-            className="block mt-8 rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-700 hover:bg-stone-100 hover:border-stone-300 transition-colors"
+          <button
+            type="button"
+            onClick={() => {
+              setVirtualOpen(true);
+              setVirtualDone(false);
+              setVirtualError("");
+            }}
+            className="block w-full mt-8 rounded-xl border border-stone-200 bg-white px-4 py-3 text-left text-stone-700 hover:bg-stone-100 hover:border-stone-300 transition-colors"
           >
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm">
                 Can&apos;t make it to Mexico City?{" "}
-                <span className="font-medium text-stone-900">Schedule a virtual interview instead.</span>
+                <span className="font-medium text-stone-900">Request a virtual interview instead.</span>
               </p>
               <span className="text-stone-400 flex-shrink-0">→</span>
             </div>
-          </a>
+          </button>
+        )}
+      </div>
+
+      {virtualOpen && (
+        <VirtualRequestModal
+          done={virtualDone}
+          form={virtualForm}
+          setForm={setVirtualForm}
+          error={virtualError}
+          submitting={virtualSubmitting}
+          valid={Boolean(virtualValid)}
+          onClose={() => setVirtualOpen(false)}
+          onSubmit={submitVirtual}
+        />
+      )}
+    </div>
+  );
+}
+
+function VirtualRequestModal({
+  done,
+  form,
+  setForm,
+  error,
+  submitting,
+  valid,
+  onClose,
+  onSubmit,
+}: {
+  done: boolean;
+  form: { fullName: string; email: string; phone: string; notes: string };
+  setForm: (
+    fn: (f: { fullName: string; email: string; phone: string; notes: string }) => {
+      fullName: string;
+      email: string;
+      phone: string;
+      notes: string;
+    }
+  ) => void;
+  error: string;
+  submitting: boolean;
+  valid: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-stone-900/50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-5 border-b border-stone-200 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-stone-900">
+              Request a virtual interview
+            </h2>
+            <p className="text-sm text-stone-600 mt-1">
+              {done
+                ? "Got it — we'll be in touch soon."
+                : "Leave your details and we'll reach out to schedule a video interview."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-stone-400 hover:text-stone-700 text-xl leading-none flex-shrink-0"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {done ? (
+          <div className="px-6 py-8">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="w-9 h-9 rounded-full bg-teal-700 text-white flex items-center justify-center text-lg">
+                ✓
+              </span>
+              <h3 className="text-xl font-semibold text-stone-900">Thanks!</h3>
+            </div>
+            <p className="text-stone-700">
+              We&apos;ve received your request. The hiring team will reach out
+              to <strong>{form.email}</strong> with the next steps. You can
+              close this window now.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-6 w-full bg-stone-900 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <form
+            className="px-6 py-5 space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (valid) onSubmit();
+            }}
+          >
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                Full name <span className="text-stone-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.fullName}
+                onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+                required
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-1 focus:ring-stone-900 focus:border-stone-900 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                Email <span className="text-stone-400">*</span>
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                required
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-1 focus:ring-stone-900 focus:border-stone-900 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                Phone <span className="text-stone-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-1 focus:ring-stone-900 focus:border-stone-900 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">
+                Anything we should know? <span className="text-stone-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-1 focus:ring-stone-900 focus:border-stone-900 outline-none placeholder:text-stone-400"
+                placeholder="Time zone, availability windows, etc."
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+                {error}
+              </p>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="px-5 py-2.5 rounded-lg text-sm font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !valid}
+                className="flex-1 bg-stone-900 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {submitting ? "Sending…" : "Send request"}
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </div>

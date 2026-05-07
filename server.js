@@ -32,9 +32,15 @@ const port = process.env.PORT || 3000;
 
 function createPool(connectionString) {
   if (!connectionString) return null;
-  const ssl = connectionString.includes("sslmode=")
-    ? { rejectUnauthorized: false }
-    : false;
+  // Render's bare internal hostnames ("dpg-xxxx-a") have no dots and don't
+  // accept SSL. External hostnames (with dots) require SSL — and Render's
+  // dashboard "External Database URL" copy field doesn't always include
+  // "?sslmode=require", so detect from the hostname instead.
+  let ssl = false;
+  try {
+    const u = new URL(connectionString);
+    if (u.hostname.includes(".")) ssl = { rejectUnauthorized: false };
+  } catch {}
   return new Pool({
     connectionString,
     ssl,

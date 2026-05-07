@@ -13,12 +13,22 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const bookings = await prisma.interviewBooking.findMany({
-    where: { jobSlug: SKILLS_LAB_LEADER_BOOKING_SLUG },
-    select: { slotStart: true },
-  });
-  const taken = bookings.map((b) => b.slotStart.toISOString());
-  return NextResponse.json({ taken });
+  try {
+    const bookings = await prisma.interviewBooking.findMany({
+      where: { jobSlug: SKILLS_LAB_LEADER_BOOKING_SLUG },
+      select: { slotStart: true },
+    });
+    const taken = bookings
+      .map((b) => b.slotStart)
+      .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+      .map((d) => d.toISOString());
+    return NextResponse.json({ taken });
+  } catch (e) {
+    console.error("Failed to load bookings:", e);
+    // Return an empty list so the page still renders. Worst case: a user
+    // double-books a slot and the POST returns 409.
+    return NextResponse.json({ taken: [] });
+  }
 }
 
 export async function POST(req: NextRequest) {

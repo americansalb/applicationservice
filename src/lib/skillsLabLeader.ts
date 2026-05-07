@@ -42,9 +42,13 @@ export function slotKey(dateIso: string, hour: number): string {
 }
 
 export function slotToUtc(dateIso: string, hour: number): Date {
-  // dateIso = "YYYY-MM-DD", hour = local hour in Mexico City
+  // dateIso = "YYYY-MM-DD", hour = local hour in Mexico City.
+  // Using Date.UTC so the hour can roll into the next UTC day cleanly
+  // (e.g. 8 PM CDMX = 02:00 UTC the following day) instead of producing
+  // an invalid "T24:00:00Z" string.
+  const [y, m, d] = dateIso.split("-").map(Number);
   const utcHour = hour - MEXICO_CITY_UTC_OFFSET_HOURS;
-  return new Date(`${dateIso}T${String(utcHour).padStart(2, "0")}:00:00.000Z`);
+  return new Date(Date.UTC(y, m - 1, d, utcHour, 0, 0));
 }
 
 export function formatSlotLabel(hour: number): string {

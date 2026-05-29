@@ -74,6 +74,8 @@ model InterviewTemplate {
   slug          String   @unique
   title         String
   round         Int      @default(1)
+  format        String   @default("self_paced")
+  liveConfig    Json?
   jobId         String?
   job           Job?     @relation(fields: [jobId], references: [id])
   roleTitle     String?
@@ -85,9 +87,33 @@ model InterviewTemplate {
   updatedAt     DateTime @updatedAt
 
   submissions   InterviewSubmission[]
+  accesses      InterviewAccess[]
 
   @@index([jobId])
   @@map("careers_interview_template")
+}
+
+model InterviewAccess {
+  id               String    @id @default(uuid())
+  token            String    @unique
+  interviewId      String
+  interview        InterviewTemplate @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  jobId            String?
+  round            Int       @default(1)
+  fullName         String
+  email            String
+  phone            String?
+  status           String    @default("invited")
+  submissionId     String?   @unique
+  submission       InterviewSubmission? @relation(fields: [submissionId], references: [id])
+  bookedSlot       DateTime?
+  previousAccessId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([interviewId])
+  @@index([jobId, email])
+  @@map("careers_interview_access")
 }
 
 model InterviewSubmission {
@@ -95,6 +121,7 @@ model InterviewSubmission {
   jobSlug     String
   interviewId String?
   interview   InterviewTemplate? @relation(fields: [interviewId], references: [id])
+  access      InterviewAccess?
   round       Int      @default(2)
   fullName    String
   email       String

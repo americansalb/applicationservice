@@ -2,17 +2,29 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { interviewInviteUrl } from "@/lib/site";
-import { roundLabel } from "@/lib/interviews";
+import { roundLabel, type InterviewFormat } from "@/lib/interviews";
+import {
+  COMMON_TIMEZONES,
+  DEFAULT_LIVE_CONFIG,
+  formatSlotInTz,
+  isoToWallClock,
+  wallClockToUtcIso,
+  type LiveConfig,
+} from "@/lib/liveSlots";
 
 type Job = { id: string; title: string; department: string };
 
 type Question = { id: string; prompt: string };
+
+type SlotRow = { date: string; time: string };
 
 type Template = {
   id: string;
   slug: string;
   title: string;
   round: number;
+  format: string;
+  liveConfig: LiveConfig | null;
   jobId: string | null;
   roleTitle: string | null;
   intro: string | null;
@@ -24,29 +36,49 @@ type Template = {
   createdAt: string;
 };
 
+type LiveForm = {
+  timeZone: string;
+  durationMins: number;
+  locationLabel: string;
+  slots: SlotRow[];
+};
+
 type FormState = {
   title: string;
   round: number;
+  format: InterviewFormat;
   jobId: string;
   roleTitle: string;
   intro: string;
   videoRequired: boolean;
   isActive: boolean;
   questions: { id: string; prompt: string }[];
+  live: LiveForm;
 };
 
 const emptyForm: FormState = {
   title: "",
   round: 1,
+  format: "self_paced",
   jobId: "",
   roleTitle: "",
   intro: "",
   videoRequired: false,
   isActive: true,
   questions: [{ id: "", prompt: "" }],
+  live: {
+    timeZone: DEFAULT_LIVE_CONFIG.timeZone,
+    durationMins: DEFAULT_LIVE_CONFIG.durationMins,
+    locationLabel: DEFAULT_LIVE_CONFIG.locationLabel || "",
+    slots: [{ date: "", time: "" }],
+  },
 };
 
-const WIZARD_STEPS = ["Basics", "Questions", "Settings", "Review"] as const;
+function stepsForFormat(format: InterviewFormat): string[] {
+  return format === "live"
+    ? ["Basics", "Schedule", "Settings", "Review"]
+    : ["Basics", "Questions", "Settings", "Review"];
+}
 
 export default function InterviewBuilder({ token }: { token: string }) {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -101,9 +133,13 @@ export default function InterviewBuilder({ token }: { token: string }) {
 
   const openEdit = (t: Template) => {
     setEditingId(t.id);
+    const isLive = t.format === "live";
+    const cfg = t.liveConfig;
+    const tz = cfg?.timeZone || DEFAULT_LIVE_CONFIG.timeZone;
     setForm({
       title: t.title,
       round: t.round,
+      format: isLive ? "live" : "self_paced",
       jobId: t.jobId || "",
       roleTitle: t.roleTitle || "",
       intro: t.intro || "",
@@ -113,6 +149,15 @@ export default function InterviewBuilder({ token }: { token: string }) {
         t.questions.length > 0
           ? t.questions.map((q) => ({ id: q.id, prompt: q.prompt }))
           : [{ id: "", prompt: "" }],
+      live: {
+        timeZone: tz,
+        durationMins: cfg?.durationMins || DEFAULT_LIVE_CONFIG.durationMins,
+        locationLabel: cfg?.locationLabel || "",
+        slots:
+          cfg && cfg.slots.length > 0
+            ? cfg.slots.map((iso) => isoToWallClock(iso, tz))
+            : [{ date: "", time: "" }],
+      },
     });
     setStep(0);
     setError("");
@@ -154,6 +199,28 @@ export default function InterviewBuilder({ token }: { token: string }) {
       return { ...f, questions: next };
     });
 
+  // ---- live slot editing ----
+  const setLiveField = <K extends keyof LiveForm>(key: K, value: LiveForm[K]) =>
+    setForm((f) => ({ ...f, live: { ...f.live, [key]: value } }));
+  const setSlot = (i: number, patch: Partial<SlotRow>) =>
+    setForm((f) => ({
+      ...f,
+      live: {
+        ...f.live,
+        slots: f.live.slots.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
+      },
+    }));
+  const addSlot = () =>
+    setForm((f) => ({ ...f, live: { ...f.live, slots: [...f.live.slots, { date: "", time: "" }] } }));
+  const removeSlot = (i: number) =>
+    setForm((f) => ({
+      ...f,
+      live: { ...f.live, slots: f.live.slots.filter((_, idx) => idx !== i) },
+    }));
+
+  const steps = stepsForFormat(form.format);
+  const isLive = form.format === "live";
+
   const cleanQuestions = useMemo(
     () =>
       form.questions
@@ -162,9 +229,20 @@ export default function InterviewBuilder({ token }: { token: string }) {
     [form.questions]
   );
 
+  // Valid slot rows → unique UTC ISO instants.
+  const liveSlotIsos = useMemo(() => {
+    const out: string[] = [];
+    for (const s of form.live.slots) {
+      if (!s.date || !s.time) continue;
+      const iso = wallClockToUtcIso(s.date, s.time, form.live.timeZone);
+      if (iso) out.push(iso);
+    }
+    return Array.from(new Set(out)).sort();
+  }, [form.live]);
+
   const stepValid = (s: number): boolean => {
     if (s === 0) return !!form.title.trim();
-    if (s === 1) return cleanQuestions.length > 0;
+    if (s === 1) return isLive ? liveSlotIsos.length > 0 : cleanQuestions.length > 0;
     return true;
   };
 
@@ -172,11 +250,15 @@ export default function InterviewBuilder({ token }: { token: string }) {
     setError("");
     if (!stepValid(step)) {
       setError(
-        step === 0 ? "Give the interview a title to continue." : "Add at least one question."
+        step === 0
+          ? "Give the interview a title to continue."
+          : isLive
+            ? "Add at least one valid time slot."
+            : "Add at least one question."
       );
       return;
     }
-    setStep((s) => Math.min(s + 1, WIZARD_STEPS.length - 1));
+    setStep((s) => Math.min(s + 1, steps.length - 1));
   };
   const back = () => {
     setError("");
@@ -203,7 +285,13 @@ export default function InterviewBuilder({ token }: { token: string }) {
       setError("Title is required.");
       return;
     }
-    if (cleanQuestions.length === 0) {
+    if (isLive) {
+      if (liveSlotIsos.length === 0) {
+        setStep(1);
+        setError("Add at least one valid time slot.");
+        return;
+      }
+    } else if (cleanQuestions.length === 0) {
       setStep(1);
       setError("Add at least one question.");
       return;
@@ -212,12 +300,21 @@ export default function InterviewBuilder({ token }: { token: string }) {
     const payload = {
       title,
       round: form.round,
+      format: form.format,
       jobId: form.jobId || null,
       roleTitle: form.roleTitle.trim() || null,
       intro: form.intro.trim() || null,
       videoRequired: form.videoRequired,
       isActive: form.isActive,
-      questions: cleanQuestions,
+      questions: isLive ? [] : cleanQuestions,
+      liveConfig: isLive
+        ? {
+            timeZone: form.live.timeZone,
+            durationMins: form.live.durationMins,
+            locationLabel: form.live.locationLabel.trim() || null,
+            slots: liveSlotIsos,
+          }
+        : null,
     };
 
     setSaving(true);
@@ -307,12 +404,14 @@ export default function InterviewBuilder({ token }: { token: string }) {
     return (
       <Wizard
         editing={!!editingId}
+        steps={steps}
         step={step}
         form={form}
         setForm={setForm}
         jobs={jobs}
         roleLabel={roleLabel}
-        cleanCount={cleanQuestions.length}
+        cleanCount={isLive ? liveSlotIsos.length : cleanQuestions.length}
+        liveSlotIsos={liveSlotIsos}
         error={error}
         saving={saving}
         created={created}
@@ -329,6 +428,10 @@ export default function InterviewBuilder({ token }: { token: string }) {
         addQuestion={addQuestion}
         removeQuestion={removeQuestion}
         moveQuestion={moveQuestion}
+        setLiveField={setLiveField}
+        setSlot={setSlot}
+        addSlot={addSlot}
+        removeSlot={removeSlot}
       />
     );
   }
@@ -386,9 +489,18 @@ export default function InterviewBuilder({ token }: { token: string }) {
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">
                         {roundLabel(t.round)}
                       </span>
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          t.format === "live"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {t.format === "live" ? "Live" : "Self-paced"}
+                      </span>
                       {t.isActive ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Live
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Active
                         </span>
                       ) : (
                         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">
@@ -412,22 +524,36 @@ export default function InterviewBuilder({ token }: { token: string }) {
                 </div>
 
                 <p className="text-xs text-gray-500 mt-3">
-                  {t.questions.length} question{t.questions.length === 1 ? "" : "s"}
-                  {t.videoRequired ? " · video required" : " · video optional"}
+                  {t.format === "live"
+                    ? `${t.liveConfig?.slots.length ?? 0} time slot${
+                        (t.liveConfig?.slots.length ?? 0) === 1 ? "" : "s"
+                      }`
+                    : `${t.questions.length} question${
+                        t.questions.length === 1 ? "" : "s"
+                      }${t.videoRequired ? " · video required" : " · video optional"}`}
                 </p>
 
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-                  <span className="text-xs text-gray-500 truncate flex-1">
-                    {interviewInviteUrl(t.slug)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyLink(t.slug)}
-                    className="px-2.5 py-1 rounded-md text-xs font-semibold text-teal-700 border border-teal-200 hover:bg-teal-50 flex-shrink-0"
-                  >
-                    {copiedSlug === t.slug ? "Copied!" : "Copy link"}
-                  </button>
-                </div>
+                {t.jobId ? (
+                  <div className="mt-3 rounded-lg bg-teal-50 border border-teal-100 px-3 py-2">
+                    <span className="text-xs text-teal-800">
+                      Part of the <strong>{t.job?.title || "job"}</strong> pipeline — invite
+                      candidates in the <strong>Candidates</strong> tab.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
+                    <span className="text-xs text-gray-500 truncate flex-1">
+                      {interviewInviteUrl(t.slug)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyLink(t.slug)}
+                      className="px-2.5 py-1 rounded-md text-xs font-semibold text-teal-700 border border-teal-200 hover:bg-teal-50 flex-shrink-0"
+                    >
+                      {copiedSlug === t.slug ? "Copied!" : "Copy link"}
+                    </button>
+                  </div>
+                )}
 
                 <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3">
                   <button
@@ -465,12 +591,14 @@ export default function InterviewBuilder({ token }: { token: string }) {
 
 function Wizard(props: {
   editing: boolean;
+  steps: string[];
   step: number;
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   jobs: Job[];
   roleLabel: string;
   cleanCount: number;
+  liveSlotIsos: string[];
   error: string;
   saving: boolean;
   created: Template | null;
@@ -487,15 +615,21 @@ function Wizard(props: {
   addQuestion: () => void;
   removeQuestion: (i: number) => void;
   moveQuestion: (i: number, dir: -1 | 1) => void;
+  setLiveField: <K extends keyof LiveForm>(key: K, value: LiveForm[K]) => void;
+  setSlot: (i: number, patch: Partial<SlotRow>) => void;
+  addSlot: () => void;
+  removeSlot: (i: number) => void;
 }) {
   const {
     editing,
+    steps,
     step,
     form,
     setForm,
     jobs,
     roleLabel,
     cleanCount,
+    liveSlotIsos,
     error,
     saving,
     created,
@@ -512,9 +646,14 @@ function Wizard(props: {
     addQuestion,
     removeQuestion,
     moveQuestion,
+    setLiveField,
+    setSlot,
+    addSlot,
+    removeSlot,
   } = props;
 
-  const isLast = step === WIZARD_STEPS.length - 1;
+  const isLive = form.format === "live";
+  const isLast = step === steps.length - 1;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -532,8 +671,10 @@ function Wizard(props: {
               </h2>
               <p className="text-teal-200 text-sm mt-0.5">
                 {created
-                  ? "Share the invitation link below with candidates."
-                  : "Self-paced · video + written · invitation-only"}
+                  ? "Next steps below."
+                  : isLive
+                    ? "Live · scheduled · invitation-only"
+                    : "Self-paced · video + written · invitation-only"}
               </p>
             </div>
             <button
@@ -558,22 +699,37 @@ function Wizard(props: {
           />
         ) : (
           <>
-            <Stepper step={step} onGoTo={onGoTo} stepValid={stepValid} />
+            <Stepper steps={steps} step={step} onGoTo={onGoTo} stepValid={stepValid} />
 
             <div className="p-6 sm:p-8">
               {step === 0 && <BasicsStep form={form} setForm={setForm} jobs={jobs} />}
-              {step === 1 && (
-                <QuestionsStep
-                  form={form}
-                  setQuestion={setQuestion}
-                  addQuestion={addQuestion}
-                  removeQuestion={removeQuestion}
-                  moveQuestion={moveQuestion}
-                />
-              )}
+              {step === 1 &&
+                (isLive ? (
+                  <ScheduleStep
+                    form={form}
+                    setLiveField={setLiveField}
+                    setSlot={setSlot}
+                    addSlot={addSlot}
+                    removeSlot={removeSlot}
+                    validCount={liveSlotIsos.length}
+                  />
+                ) : (
+                  <QuestionsStep
+                    form={form}
+                    setQuestion={setQuestion}
+                    addQuestion={addQuestion}
+                    removeQuestion={removeQuestion}
+                    moveQuestion={moveQuestion}
+                  />
+                ))}
               {step === 2 && <SettingsStep form={form} setForm={setForm} />}
               {step === 3 && (
-                <ReviewStep form={form} roleLabel={roleLabel} cleanCount={cleanCount} />
+                <ReviewStep
+                  form={form}
+                  roleLabel={roleLabel}
+                  cleanCount={cleanCount}
+                  liveSlotIsos={liveSlotIsos}
+                />
               )}
 
               {error && (
@@ -593,7 +749,7 @@ function Wizard(props: {
                   {step === 0 ? "Cancel" : "← Back"}
                 </button>
                 <span className="text-xs text-gray-400 ml-auto">
-                  Step {step + 1} of {WIZARD_STEPS.length}
+                  Step {step + 1} of {steps.length}
                 </span>
                 {isLast ? (
                   <button
@@ -627,17 +783,19 @@ function Wizard(props: {
 }
 
 function Stepper({
+  steps,
   step,
   onGoTo,
   stepValid,
 }: {
+  steps: string[];
   step: number;
   onGoTo: (s: number) => void;
   stepValid: (s: number) => boolean;
 }) {
   return (
     <div className="border-b border-gray-100 px-6 sm:px-8 py-4 flex items-center">
-      {WIZARD_STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const done = i < step;
         const current = i === step;
         const reachable = i <= step || [...Array(i).keys()].every((k) => stepValid(k));
@@ -668,7 +826,7 @@ function Stepper({
                 {label}
               </span>
             </button>
-            {i < WIZARD_STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <span
                 className={`flex-1 h-0.5 mx-2 sm:mx-3 rounded-full ${
                   done ? "bg-teal-400" : "bg-gray-200"
@@ -721,6 +879,32 @@ function BasicsStep({
               }`}
             >
               {roundLabel(r)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <Label>Format</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {(
+            [
+              ["self_paced", "Self-paced", "Candidate records video + written answers on their own time."],
+              ["live", "Live interview", "Candidate books a time slot for a live conversation."],
+            ] as const
+          ).map(([val, label, desc]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, format: val }))}
+              className={`text-left px-4 py-3 rounded-lg border transition-colors ${
+                form.format === val
+                  ? "border-teal-600 bg-teal-50"
+                  : "border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              <span className="block text-sm font-semibold text-gray-900">{label}</span>
+              <span className="block text-xs text-gray-500 mt-0.5">{desc}</span>
             </button>
           ))}
         </div>
@@ -842,6 +1026,112 @@ function QuestionsStep({
   );
 }
 
+function ScheduleStep({
+  form,
+  setLiveField,
+  setSlot,
+  addSlot,
+  removeSlot,
+  validCount,
+}: {
+  form: FormState;
+  setLiveField: <K extends keyof LiveForm>(key: K, value: LiveForm[K]) => void;
+  setSlot: (i: number, patch: Partial<SlotRow>) => void;
+  addSlot: () => void;
+  removeSlot: (i: number) => void;
+  validCount: number;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-base font-semibold text-gray-900">Schedule</h3>
+        <span className="text-xs text-gray-400">{validCount} valid slot{validCount === 1 ? "" : "s"}</span>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Offer times for the live interview. Candidates pick one; each can only be
+        booked once. Times are entered and shown in the timezone below.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-2">
+          <Label>Timezone</Label>
+          <select
+            value={form.live.timeZone}
+            onChange={(e) => setLiveField("timeZone", e.target.value)}
+            className={inputCls}
+          >
+            {COMMON_TIMEZONES.map((tz) => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>Duration (min)</Label>
+          <input
+            type="number"
+            min={5}
+            step={5}
+            value={form.live.durationMins}
+            onChange={(e) => setLiveField("durationMins", Number(e.target.value) || 0)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <Label optional>Location / meeting details</Label>
+        <input
+          type="text"
+          value={form.live.locationLabel}
+          onChange={(e) => setLiveField("locationLabel", e.target.value)}
+          placeholder="e.g. Google Meet (link sent after booking) or an address"
+          className={inputCls}
+        />
+      </div>
+
+      <div className="mt-5">
+        <Label>Available times</Label>
+        <div className="space-y-2">
+          {form.live.slots.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="date"
+                value={s.date}
+                onChange={(e) => setSlot(i, { date: e.target.value })}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+              />
+              <input
+                type="time"
+                value={s.time}
+                onChange={(e) => setSlot(i, { time: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => removeSlot(i)}
+                disabled={form.live.slots.length === 1}
+                className="h-9 w-9 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30 text-xs flex-shrink-0"
+                aria-label="Remove slot"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addSlot}
+          className="mt-3 w-full rounded-xl border-2 border-dashed border-gray-200 py-3 text-sm font-medium text-teal-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
+        >
+          + Add time slot
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SettingsStep({
   form,
   setForm,
@@ -862,17 +1152,19 @@ function SettingsStep({
         />
       </div>
 
-      <Toggle
-        checked={form.videoRequired}
-        onChange={(v) => setForm((f) => ({ ...f, videoRequired: v }))}
-        title="Require a video answer for every question"
-        desc="Candidates can't continue past a question until they've recorded a video. Leave off to allow written-only answers if their camera fails."
-      />
+      {form.format !== "live" && (
+        <Toggle
+          checked={form.videoRequired}
+          onChange={(v) => setForm((f) => ({ ...f, videoRequired: v }))}
+          title="Require a video answer for every question"
+          desc="Candidates can't continue past a question until they've recorded a video. Leave off to allow written-only answers if their camera fails."
+        />
+      )}
       <Toggle
         checked={form.isActive}
         onChange={(v) => setForm((f) => ({ ...f, isActive: v }))}
         title="Active"
-        desc="When on, the invitation link works for candidates. Turn off to pause it."
+        desc="When on, candidates you invite can open this round. Turn off to pause it."
       />
     </div>
   );
@@ -882,11 +1174,14 @@ function ReviewStep({
   form,
   roleLabel,
   cleanCount,
+  liveSlotIsos,
 }: {
   form: FormState;
   roleLabel: string;
   cleanCount: number;
+  liveSlotIsos: string[];
 }) {
+  const isLive = form.format === "live";
   const questions = form.questions.filter((q) => q.prompt.trim());
   return (
     <div>
@@ -896,9 +1191,16 @@ function ReviewStep({
           <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">
             {roundLabel(form.round)}
           </span>
+          <span
+            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+              isLive ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {isLive ? "Live" : "Self-paced"}
+          </span>
           {form.isActive ? (
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-              Live on create
+              Active on create
             </span>
           ) : (
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">
@@ -910,23 +1212,49 @@ function ReviewStep({
           {form.title.trim() || "Untitled interview"}
         </p>
         <p className="text-sm text-gray-600 mt-1">
-          {roleLabel} · {cleanCount} question{cleanCount === 1 ? "" : "s"} ·{" "}
-          {form.videoRequired ? "video required" : "video optional"}
+          {roleLabel} ·{" "}
+          {isLive
+            ? `${cleanCount} time slot${cleanCount === 1 ? "" : "s"} · ${form.live.durationMins} min · ${form.live.timeZone}`
+            : `${cleanCount} question${cleanCount === 1 ? "" : "s"} · ${
+                form.videoRequired ? "video required" : "video optional"
+              }`}
         </p>
       </div>
 
-      <div className="space-y-2">
-        {questions.map((q, i) => (
-          <div key={i} className="flex gap-3 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5">
-            <span className="text-xs font-bold text-teal-700 mt-0.5">Q{i + 1}</span>
-            <p className="text-sm text-gray-700">{q.prompt.trim()}</p>
-          </div>
-        ))}
-      </div>
+      {isLive ? (
+        <div className="space-y-2">
+          {liveSlotIsos.map((iso, i) => {
+            const { dateLabel, timeRange } = formatSlotInTz(
+              iso,
+              form.live.timeZone,
+              form.live.durationMins
+            );
+            return (
+              <div
+                key={i}
+                className="flex justify-between gap-3 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5"
+              >
+                <span className="text-sm text-gray-700">{dateLabel}</span>
+                <span className="text-sm font-medium text-gray-900">{timeRange}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {questions.map((q, i) => (
+            <div key={i} className="flex gap-3 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5">
+              <span className="text-xs font-bold text-teal-700 mt-0.5">Q{i + 1}</span>
+              <p className="text-sm text-gray-700">{q.prompt.trim()}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <p className="text-xs text-gray-400 mt-5">
-        After you create this, you&apos;ll get an unguessable invitation link to
-        send to candidates.
+        {form.jobId
+          ? "This round joins the job's pipeline. Invite candidates from the Candidates tab."
+          : "After you create this, you'll get an unguessable invitation link to send to candidates."}
       </p>
     </div>
   );
@@ -948,6 +1276,7 @@ function SuccessPanel({
   onClose: () => void;
 }) {
   const url = interviewInviteUrl(created.slug);
+  const inPipeline = !!created.jobId;
   return (
     <div className="p-6 sm:p-8">
       <div className="flex items-center gap-3 mb-5">
@@ -965,21 +1294,35 @@ function SuccessPanel({
         </div>
       </div>
 
-      <Label>Invitation link</Label>
-      <div className="flex items-center gap-2 rounded-xl bg-teal-50 border border-teal-200 px-4 py-3">
-        <span className="text-sm text-teal-900 break-all flex-1">{url}</span>
-        <button
-          type="button"
-          onClick={() => onCopyLink(created.slug)}
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-teal-700 text-white hover:bg-teal-800 flex-shrink-0"
-        >
-          {copiedSlug === created.slug ? "Copied!" : "Copy"}
-        </button>
-      </div>
-      <p className="text-xs text-gray-500 mt-2">
-        Send this to invited candidates. Responses appear under{" "}
-        <strong>Submissions</strong>.
-      </p>
+      {inPipeline ? (
+        <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-4">
+          <p className="text-sm text-teal-900">
+            This round is part of the{" "}
+            <strong>{created.job?.title || "job"}</strong> pipeline. Candidates
+            reach it by being invited (Round 1) or advanced — go to the{" "}
+            <strong>Candidates</strong> tab to invite someone. Round links are
+            unique per candidate and gated.
+          </p>
+        </div>
+      ) : (
+        <>
+          <Label>Invitation link</Label>
+          <div className="flex items-center gap-2 rounded-xl bg-teal-50 border border-teal-200 px-4 py-3">
+            <span className="text-sm text-teal-900 break-all flex-1">{url}</span>
+            <button
+              type="button"
+              onClick={() => onCopyLink(created.slug)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-teal-700 text-white hover:bg-teal-800 flex-shrink-0"
+            >
+              {copiedSlug === created.slug ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Send this to invited candidates. Responses appear under{" "}
+            <strong>Submissions</strong>.
+          </p>
+        </>
+      )}
 
       <div className="flex gap-3 mt-7">
         <button

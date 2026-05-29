@@ -31,6 +31,18 @@ export function generateInterviewSlug(title: string): string {
   return `${base}-${random}`;
 }
 
+// Per-candidate, per-round access token. Pure random (no readable part) since
+// it gates a specific candidate's progression through the pipeline.
+export function generateAccessToken(): string {
+  return crypto.randomBytes(24).toString("base64url"); // 192 bits
+}
+
+export type InterviewFormat = "self_paced" | "live";
+
+export function isLive(format: string | null | undefined): boolean {
+  return format === "live";
+}
+
 // Accepts loosely-typed input (from JSON / form bodies) and returns a clean,
 // de-duplicated, id'd list of questions. Throws on invalid shape.
 export function normalizeQuestions(input: unknown): InterviewQuestion[] {

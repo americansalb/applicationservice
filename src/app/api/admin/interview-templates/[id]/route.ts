@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import { normalizeQuestions } from "@/lib/interviews";
+import { normalizeLiveConfig } from "@/lib/liveSlots";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,19 @@ export async function PATCH(
   }
   if (body.isActive !== undefined) {
     data.isActive = body.isActive === true;
+  }
+  if (body.format !== undefined) {
+    data.format = body.format === "live" ? "live" : "self_paced";
+  }
+  if (body.liveConfig !== undefined) {
+    const cfg = normalizeLiveConfig(body.liveConfig);
+    if (data.format === "live" && cfg.slots.length === 0) {
+      return NextResponse.json(
+        { error: "Add at least one time slot for a live round." },
+        { status: 400 }
+      );
+    }
+    data.liveConfig = cfg;
   }
   if (body.questions !== undefined) {
     try {

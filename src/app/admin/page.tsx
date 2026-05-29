@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import InterviewBuilder from "./InterviewBuilder";
+import InterviewsAdmin from "./InterviewsAdmin";
 
 interface Stats {
   totalJobs: number;
@@ -752,7 +752,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {view === "manageInterviews" && token && <InterviewBuilder token={token} />}
+        {view === "manageInterviews" && token && <InterviewsAdmin token={token} />}
 
         {view === "interviews" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

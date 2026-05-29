@@ -43,7 +43,8 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
   const isPartners = pathname.startsWith("/partners");
   // Candidate-facing interview pages get a clean, distraction-free chrome:
   // branded but without the staff "Admin" / "Open Roles" navigation.
-  const isInterview = pathname.startsWith("/interview");
+  const isInterview =
+    pathname.startsWith("/interview") || pathname.startsWith("/r/");
 
   if (isPartners) {
     return <main className="min-h-screen">{children}</main>;

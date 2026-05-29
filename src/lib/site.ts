@@ -22,3 +22,8 @@ export function resolveSiteUrl(): string {
 export function interviewInviteUrl(slug: string): string {
   return `${resolveSiteUrl()}/interview/${slug}`;
 }
+
+// Per-candidate gated round link (pipeline).
+export function accessUrl(token: string): string {
+  return `${resolveSiteUrl()}/r/${token}`;
+}

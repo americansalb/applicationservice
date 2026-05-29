@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import { generateInterviewSlug, normalizeQuestions } from "@/lib/interviews";
+import { normalizeLiveConfig } from "@/lib/liveSlots";
 
 export const dynamic = "force-dynamic";
 
@@ -53,14 +54,28 @@ export async function POST(req: NextRequest) {
   const roundNum = Number(body.round);
   const round = Number.isFinite(roundNum) && roundNum >= 1 ? Math.floor(roundNum) : 1;
 
-  let questions;
-  try {
-    questions = normalizeQuestions(body.questions);
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Invalid questions" },
-      { status: 400 }
-    );
+  const format = body.format === "live" ? "live" : "self_paced";
+
+  // Live rounds carry scheduling slots instead of questions.
+  let questions: { id: string; prompt: string }[] = [];
+  let liveConfig = null;
+  if (format === "live") {
+    liveConfig = normalizeLiveConfig(body.liveConfig);
+    if (liveConfig.slots.length === 0) {
+      return NextResponse.json(
+        { error: "Add at least one time slot for a live round." },
+        { status: 400 }
+      );
+    }
+  } else {
+    try {
+      questions = normalizeQuestions(body.questions);
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "Invalid questions" },
+        { status: 400 }
+      );
+    }
   }
 
   const jobId =
@@ -80,6 +95,8 @@ export async function POST(req: NextRequest) {
         slug: generateInterviewSlug(title),
         title,
         round,
+        format,
+        liveConfig: liveConfig === null ? undefined : liveConfig,
         jobId,
         roleTitle,
         intro,

@@ -36,6 +36,9 @@ export default function InterviewClient({
   intro,
   videoRequired,
   questions,
+  submitUrl,
+  prefill,
+  collectInfo = true,
 }: {
   slug: string;
   title: string;
@@ -44,11 +47,19 @@ export default function InterviewClient({
   intro: string | null;
   videoRequired: boolean;
   questions: InterviewQuestion[];
+  submitUrl?: string;
+  prefill?: Partial<BasicInfo>;
+  collectInfo?: boolean;
 }) {
+  const firstQuestionStep: "info" | number | "review" = collectInfo
+    ? "info"
+    : questions.length > 0
+      ? 0
+      : "review";
   const [step, setStep] = useState<"intro" | "info" | number | "review" | "done">(
     "intro"
   );
-  const [info, setInfo] = useState<BasicInfo>(emptyInfo);
+  const [info, setInfo] = useState<BasicInfo>({ ...emptyInfo, ...prefill });
   const [answers, setAnswers] = useState<Record<string, AnswerState>>(() =>
     Object.fromEntries(
       questions.map((q) => [
@@ -83,7 +94,7 @@ export default function InterviewClient({
           fd.append(`video_${q.id}`, a.videoBlob, `${q.id}.${ext}`);
         }
       }
-      const res = await fetch(`/api/interviews/${slug}/submit`, {
+      const res = await fetch(submitUrl ?? `/api/interviews/${slug}/submit`, {
         method: "POST",
         body: fd,
       });
@@ -102,16 +113,17 @@ export default function InterviewClient({
 
   const lastIndex = questions.length - 1;
 
-  const totalStages = questions.length + 3; // info + each question + review + done
+  const qBase = collectInfo ? 2 : 1; // stage index of the first question
+  const totalStages = qBase + questions.length + 1; // …+ review + done
   const stageIndex =
     step === "intro"
       ? 0
       : step === "info"
         ? 1
         : typeof step === "number"
-          ? 2 + step
+          ? qBase + step
           : step === "review"
-            ? 2 + questions.length
+            ? qBase + questions.length
             : totalStages; // done
   const progress = Math.min(100, Math.round((stageIndex / totalStages) * 100));
   const stageLabel =
@@ -158,11 +170,11 @@ export default function InterviewClient({
                 roleTitle={roleTitle}
                 intro={intro}
                 videoRequired={videoRequired}
-                onContinue={() => setStep("info")}
+                onContinue={() => setStep(firstQuestionStep)}
               />
             )}
 
-            {step === "info" && (
+            {step === "info" && collectInfo && (
               <InfoStep
                 info={info}
                 onChange={setInfo}
@@ -178,7 +190,9 @@ export default function InterviewClient({
                 videoRequired={videoRequired}
                 answer={answers[questions[step].id]}
                 onChange={(patch) => updateAnswer(questions[step].id, patch)}
-                onBack={() => setStep(step === 0 ? "info" : step - 1)}
+                onBack={() =>
+                  setStep(step === 0 ? (collectInfo ? "info" : "intro") : step - 1)
+                }
                 onNext={() => setStep(step === lastIndex ? "review" : step + 1)}
               />
             )}
@@ -190,7 +204,15 @@ export default function InterviewClient({
                 answers={answers}
                 submitting={submitting}
                 error={error}
-                onBack={() => setStep(questions.length > 0 ? lastIndex : "info")}
+                onBack={() =>
+                  setStep(
+                    questions.length > 0
+                      ? lastIndex
+                      : collectInfo
+                        ? "info"
+                        : "intro"
+                  )
+                }
                 onSubmit={handleSubmit}
               />
             )}

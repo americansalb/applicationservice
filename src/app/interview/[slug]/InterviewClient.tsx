@@ -102,6 +102,29 @@ export default function InterviewClient({
 
   const lastIndex = questions.length - 1;
 
+  const totalStages = questions.length + 3; // info + each question + review + done
+  const stageIndex =
+    step === "intro"
+      ? 0
+      : step === "info"
+        ? 1
+        : typeof step === "number"
+          ? 2 + step
+          : step === "review"
+            ? 2 + questions.length
+            : totalStages; // done
+  const progress = Math.min(100, Math.round((stageIndex / totalStages) * 100));
+  const stageLabel =
+    step === "intro"
+      ? "Welcome"
+      : step === "info"
+        ? "Your details"
+        : typeof step === "number"
+          ? `Question ${step + 1} of ${questions.length}`
+          : step === "review"
+            ? "Review"
+            : "Complete";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-100">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
@@ -112,6 +135,20 @@ export default function InterviewClient({
               {roundLabel(round)} · Self-paced video interview
               {roleTitle ? ` · ${roleTitle}` : ""}
             </p>
+          </div>
+
+          {/* Progress */}
+          <div className="px-6 sm:px-8 pt-4">
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+              <span className="font-medium text-teal-700">{stageLabel}</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full bg-teal-600 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
 
           <div className="p-6 sm:p-8">

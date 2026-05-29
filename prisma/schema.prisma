@@ -22,6 +22,7 @@ model Job {
   updatedAt   DateTime @updatedAt
 
   applications Application[]
+  interviewTemplates InterviewTemplate[]
 
   @@map("careers_job")
 }
@@ -68,9 +69,33 @@ model AdminUser {
   @@map("careers_admin_user")
 }
 
+model InterviewTemplate {
+  id            String   @id @default(uuid())
+  slug          String   @unique
+  title         String
+  round         Int      @default(1)
+  jobId         String?
+  job           Job?     @relation(fields: [jobId], references: [id])
+  roleTitle     String?
+  intro         String?
+  questions     Json
+  videoRequired Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  submissions   InterviewSubmission[]
+
+  @@index([jobId])
+  @@map("careers_interview_template")
+}
+
 model InterviewSubmission {
   id          String   @id @default(uuid())
   jobSlug     String
+  interviewId String?
+  interview   InterviewTemplate? @relation(fields: [interviewId], references: [id])
+  round       Int      @default(2)
   fullName    String
   email       String
   phone       String
@@ -84,6 +109,7 @@ model InterviewSubmission {
   updatedAt   DateTime @updatedAt
 
   @@index([jobSlug])
+  @@index([interviewId])
   @@map("careers_interview_submission")
 }
 

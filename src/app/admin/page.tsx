@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import InterviewBuilder from "./InterviewBuilder";
 
 interface Stats {
   totalJobs: number;
@@ -32,6 +33,8 @@ interface Application {
 interface InterviewSubmission {
   id: string;
   jobSlug: string;
+  round?: number;
+  interview?: { id: string; title: string; round: number } | null;
   fullName: string;
   email: string;
   phone: string;
@@ -87,7 +90,12 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<InterviewBooking[]>([]);
   const [virtualRequests, setVirtualRequests] = useState<VirtualRequest[]>([]);
   const [view, setView] = useState<
-    "dashboard" | "applications" | "postJob" | "interviews" | "bookings"
+    | "dashboard"
+    | "applications"
+    | "postJob"
+    | "manageInterviews"
+    | "interviews"
+    | "bookings"
   >("dashboard");
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -392,12 +400,20 @@ export default function AdminPage() {
                   Post Job
                 </button>
                 <button
+                  onClick={() => setView("manageInterviews")}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === "manageInterviews" ? "bg-teal-700 text-white" : "text-teal-300 hover:text-white"
+                  }`}
+                >
+                  Interviews
+                </button>
+                <button
                   onClick={() => setView("interviews")}
                   className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     view === "interviews" ? "bg-teal-700 text-white" : "text-teal-300 hover:text-white"
                   }`}
                 >
-                  Interviews
+                  Submissions
                 </button>
                 <button
                   onClick={() => setView("bookings")}
@@ -421,47 +437,27 @@ export default function AdminPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Mobile view toggle */}
-        <div className="sm:hidden flex space-x-1 bg-gray-200 rounded-lg p-1 mb-6">
-          <button
-            onClick={() => setView("dashboard")}
-            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              view === "dashboard" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setView("applications")}
-            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              view === "applications" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Applications
-          </button>
-          <button
-            onClick={() => setView("postJob")}
-            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              view === "postJob" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Post Job
-          </button>
-          <button
-            onClick={() => setView("interviews")}
-            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              view === "interviews" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Interviews
-          </button>
-          <button
-            onClick={() => setView("bookings")}
-            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              view === "bookings" ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Bookings
-          </button>
+        <div className="sm:hidden grid grid-cols-3 gap-1 bg-gray-200 rounded-lg p-1 mb-6">
+          {(
+            [
+              ["dashboard", "Dashboard"],
+              ["applications", "Applications"],
+              ["postJob", "Post Job"],
+              ["manageInterviews", "Interviews"],
+              ["interviews", "Submissions"],
+              ["bookings", "Bookings"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              className={`px-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === key ? "bg-white text-teal-900 shadow-sm" : "text-gray-500"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {view === "dashboard" && stats && (
@@ -756,12 +752,14 @@ export default function AdminPage() {
           </div>
         )}
 
+        {view === "manageInterviews" && token && <InterviewBuilder token={token} />}
+
         {view === "interviews" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Interview Submissions</h2>
-                <p className="text-sm text-gray-500">Round 2 video interviews from candidates.</p>
+                <p className="text-sm text-gray-500">Self-paced video interviews from candidates.</p>
               </div>
               <span className="text-sm text-gray-400">{interviews.length} total</span>
             </div>
@@ -771,15 +769,21 @@ export default function AdminPage() {
               <div className="divide-y divide-gray-100">
                 {interviews.map((s) => (
                   <details key={s.id} className="px-6 py-4">
-                    <summary className="cursor-pointer flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{s.fullName}</p>
-                        <p className="text-xs text-gray-500">
+                    <summary className="cursor-pointer flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-700">
+                            Round {s.interview?.round ?? s.round ?? 2}
+                          </span>
+                          <p className="font-medium text-gray-900">{s.fullName}</p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {s.interview?.title ? `${s.interview.title} · ` : ""}
                           {s.email} · {s.phone}
                           {s.location ? ` · ${s.location}` : ""}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 flex-shrink-0">
                         {new Date(s.createdAt).toLocaleString()}
                       </span>
                     </summary>

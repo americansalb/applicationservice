@@ -12,6 +12,9 @@ export async function GET(req: NextRequest) {
 
   const submissions = await prisma.interviewSubmission.findMany({
     orderBy: { createdAt: "desc" },
+    include: {
+      interview: { select: { id: true, title: true, round: true } },
+    },
   });
   return NextResponse.json(submissions);
 }

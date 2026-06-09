@@ -82,6 +82,9 @@ model InterviewTemplate {
   intro         String?
   questions     Json
   videoRequired Boolean  @default(false)
+  // Session-level capture config (captureMode, maxSubmissions). Nullable so
+  // pre-existing rows and other services that don't know about it are unaffected.
+  config        Json?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -104,6 +107,8 @@ model InterviewAccess {
   email            String
   phone            String?
   status           String    @default("invited")
+  // Number of times this candidate has submitted this round (vs config.maxSubmissions).
+  attemptsUsed     Int       @default(0)
   submissionId     String?   @unique
   submission       InterviewSubmission? @relation(fields: [submissionId], references: [id])
   bookedSlot       DateTime?

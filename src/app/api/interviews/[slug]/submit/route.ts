@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { uploadVideoToDrive } from "@/lib/googleDrive";
 import { sendEmail } from "@/lib/email";
 import {
-  MAX_VIDEO_BYTES,
   escapeHtml,
   roundLabel,
+  normalizeQuestions,
+  normalizeInterviewConfig,
   type InterviewQuestion,
 } from "@/lib/interviews";
+import { collectInterviewAnswers, SubmitError } from "@/lib/interviewSubmit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -27,8 +28,13 @@ export async function POST(
     return NextResponse.json({ error: "Interview not found" }, { status: 404 });
   }
 
-  const questions =
-    (template.questions as unknown as InterviewQuestion[]) || [];
+  let questions: InterviewQuestion[];
+  try {
+    questions = normalizeQuestions(template.questions ?? []);
+  } catch {
+    questions = [];
+  }
+  const config = normalizeInterviewConfig(template.config);
 
   let form: FormData;
   try {
@@ -54,54 +60,20 @@ export async function POST(
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
-  const answers: Record<string, string> = {};
-  const videoUrls: Record<string, { fileId: string; webViewLink: string }> = {};
-
-  for (const q of questions) {
-    const text = String(form.get(`answer_${q.id}`) || "").trim();
-    if (text) answers[q.id] = text;
-
-    const file = form.get(`video_${q.id}`);
-    const hasVideo = file && file instanceof File && file.size > 0;
-
-    if (template.videoRequired && !hasVideo) {
-      return NextResponse.json(
-        { error: "A video answer is required for every question." },
-        { status: 400 }
-      );
+  let answers: Record<string, string>;
+  let videoUrls: Record<string, { fileId: string; webViewLink: string }>;
+  try {
+    ({ answers, videoUrls } = await collectInterviewAnswers(form, questions, {
+      videoRequired: template.videoRequired,
+      captureMode: config.captureMode,
+      slug: template.slug,
+      fullName,
+    }));
+  } catch (e) {
+    if (e instanceof SubmitError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
     }
-
-    if (hasVideo) {
-      const f = file as File;
-      if (f.size > MAX_VIDEO_BYTES) {
-        return NextResponse.json(
-          { error: `Video for "${q.prompt.slice(0, 40)}…" exceeds 200 MB limit` },
-          { status: 413 }
-        );
-      }
-      const arrayBuffer = await f.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const safeName = fullName.replace(/[^a-zA-Z0-9_-]+/g, "_");
-      const ext = f.name.split(".").pop() || "webm";
-      try {
-        const result = await uploadVideoToDrive({
-          filename: `${template.slug}_${safeName}_${q.id}_${Date.now()}.${ext}`,
-          mimeType: f.type || "video/webm",
-          buffer,
-        });
-        videoUrls[q.id] = result;
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Drive upload failed";
-        return NextResponse.json({ error: message }, { status: 500 });
-      }
-    }
-  }
-
-  if (Object.keys(answers).length === 0 && Object.keys(videoUrls).length === 0) {
-    return NextResponse.json(
-      { error: "Please answer at least one question before submitting." },
-      { status: 400 }
-    );
+    throw e;
   }
 
   let submission;

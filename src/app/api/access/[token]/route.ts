@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import type { InterviewQuestion } from "@/lib/interviews";
+import {
+  normalizeQuestions,
+  normalizeInterviewConfig,
+  type InterviewQuestion,
+} from "@/lib/interviews";
 import { normalizeLiveConfig } from "@/lib/liveSlots";
 
 export const dynamic = "force-dynamic";
@@ -84,11 +88,22 @@ export async function GET(
   }
 
   // Self-paced round.
-  const questions = (tpl.questions as unknown as InterviewQuestion[]) || [];
+  let questions: InterviewQuestion[];
+  try {
+    questions = normalizeQuestions(tpl.questions ?? []);
+  } catch {
+    questions = [];
+  }
+  const config = normalizeInterviewConfig(tpl.config);
+  // A candidate is "done" once they've used all their allowed submissions.
+  const done =
+    access.status !== "invited" && access.attemptsUsed >= config.maxSubmissions;
   return NextResponse.json({
     ...base,
     videoRequired: tpl.videoRequired,
     questions,
-    done: access.status !== "invited",
+    config,
+    attemptsUsed: access.attemptsUsed,
+    done,
   });
 }

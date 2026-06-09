@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { InterviewQuestion } from "@/lib/interviews";
+import type { InterviewQuestion, InterviewConfig } from "@/lib/interviews";
 import InterviewClient from "@/app/interview/[slug]/InterviewClient";
 import LiveBooking from "./LiveBooking";
 
@@ -19,6 +19,7 @@ type AccessData = {
   // self-paced
   videoRequired?: boolean;
   questions?: InterviewQuestion[];
+  config?: InterviewConfig;
   // live
   live?: {
     timeZone: string;
@@ -117,6 +118,7 @@ export default function GatedRound({ token }: { token: string }) {
       intro={data.intro}
       videoRequired={!!data.videoRequired}
       questions={data.questions || []}
+      config={data.config}
       submitUrl={`/api/access/${token}/submit`}
       prefill={{
         fullName: data.candidate.fullName,

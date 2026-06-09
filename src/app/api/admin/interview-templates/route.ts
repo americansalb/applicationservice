@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
-import { generateInterviewSlug, normalizeQuestions } from "@/lib/interviews";
+import {
+  generateInterviewSlug,
+  normalizeQuestions,
+  normalizeInterviewConfig,
+} from "@/lib/interviews";
 import { normalizeLiveConfig } from "@/lib/liveSlots";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +92,8 @@ export async function POST(req: NextRequest) {
     typeof body.intro === "string" && body.intro.trim() ? body.intro.trim() : null;
   const videoRequired = body.videoRequired === true;
   const isActive = body.isActive === undefined ? true : body.isActive === true;
+  // Live rounds have no capture config; self-paced rounds carry one.
+  const config = format === "live" ? null : normalizeInterviewConfig(body.config);
 
   try {
     const created = await prisma.interviewTemplate.create({
@@ -97,6 +103,7 @@ export async function POST(req: NextRequest) {
         round,
         format,
         liveConfig: liveConfig === null ? undefined : liveConfig,
+        config: config === null ? undefined : config,
         jobId,
         roleTitle,
         intro,

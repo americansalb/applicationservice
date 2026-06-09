@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { interviewInviteUrl } from "@/lib/site";
-import { roundLabel, type InterviewFormat } from "@/lib/interviews";
+import {
+  roundLabel,
+  isMediaType,
+  type InterviewFormat,
+  type QuestionType,
+} from "@/lib/interviews";
 import {
   COMMON_TIMEZONES,
   DEFAULT_LIVE_CONFIG,
@@ -14,7 +19,60 @@ import {
 
 type Job = { id: string; title: string; department: string };
 
-type Question = { id: string; prompt: string };
+// Rich question shape used by the builder form and the API.
+type QuestionForm = {
+  id: string;
+  prompt: string;
+  type: QuestionType;
+  helpText: string;
+  required: boolean;
+  maxTakes: number; // 0 = unlimited
+  maxDurationSec: number; // 0 = no limit
+  prepTimeSec: number; // 0 = none
+  allowReview: boolean;
+  options: string[];
+  ratingScale: number;
+};
+
+type CaptureConfig = {
+  captureMode: "per_question" | "continuous";
+  maxSubmissions: number;
+};
+
+const emptyQuestion = (): QuestionForm => ({
+  id: "",
+  prompt: "",
+  type: "video",
+  helpText: "",
+  required: false,
+  maxTakes: 0,
+  maxDurationSec: 0,
+  prepTimeSec: 0,
+  allowReview: true,
+  options: [],
+  ratingScale: 5,
+});
+
+// Coerce a question coming back from the API (where text fields may be null and
+// some properties may be missing on legacy rows) into a complete form object.
+function toQuestionForm(q: Partial<QuestionForm> & { id: string; prompt: string }): QuestionForm {
+  const base = emptyQuestion();
+  return {
+    ...base,
+    ...q,
+    helpText: q.helpText ?? "",
+    options: Array.isArray(q.options) ? q.options : [],
+    type: q.type ?? "video",
+  };
+}
+
+const QUESTION_TYPE_META: Record<QuestionType, { label: string; hint: string }> = {
+  video: { label: "Video", hint: "Records camera + mic" },
+  audio: { label: "Audio", hint: "Records mic only" },
+  text: { label: "Written", hint: "Typed answer" },
+  multiple_choice: { label: "Choice", hint: "Pick one option" },
+  rating: { label: "Rating", hint: "Numeric scale" },
+};
 
 type SlotRow = { date: string; time: string };
 
@@ -25,12 +83,13 @@ type Template = {
   round: number;
   format: string;
   liveConfig: LiveConfig | null;
+  config: CaptureConfig | null;
   jobId: string | null;
   roleTitle: string | null;
   intro: string | null;
   videoRequired: boolean;
   isActive: boolean;
-  questions: Question[];
+  questions: QuestionForm[];
   job: { id: string; title: string } | null;
   _count: { submissions: number };
   createdAt: string;
@@ -52,7 +111,8 @@ type FormState = {
   intro: string;
   videoRequired: boolean;
   isActive: boolean;
-  questions: { id: string; prompt: string }[];
+  questions: QuestionForm[];
+  capture: CaptureConfig;
   live: LiveForm;
 };
 
@@ -65,7 +125,8 @@ const emptyForm: FormState = {
   intro: "",
   videoRequired: false,
   isActive: true,
-  questions: [{ id: "", prompt: "" }],
+  questions: [emptyQuestion()],
+  capture: { captureMode: "per_question", maxSubmissions: 1 },
   live: {
     timeZone: DEFAULT_LIVE_CONFIG.timeZone,
     durationMins: DEFAULT_LIVE_CONFIG.durationMins,
@@ -147,8 +208,12 @@ export default function InterviewBuilder({ token }: { token: string }) {
       isActive: t.isActive,
       questions:
         t.questions.length > 0
-          ? t.questions.map((q) => ({ id: q.id, prompt: q.prompt }))
-          : [{ id: "", prompt: "" }],
+          ? t.questions.map(toQuestionForm)
+          : [emptyQuestion()],
+      capture: {
+        captureMode: t.config?.captureMode === "continuous" ? "continuous" : "per_question",
+        maxSubmissions: t.config?.maxSubmissions || 1,
+      },
       live: {
         timeZone: tz,
         durationMins: cfg?.durationMins || DEFAULT_LIVE_CONFIG.durationMins,
@@ -181,13 +246,13 @@ export default function InterviewBuilder({ token }: { token: string }) {
   };
 
   // ---- question editing ----
-  const setQuestion = (i: number, prompt: string) =>
+  const patchQuestion = (i: number, patch: Partial<QuestionForm>) =>
     setForm((f) => ({
       ...f,
-      questions: f.questions.map((q, idx) => (idx === i ? { ...q, prompt } : q)),
+      questions: f.questions.map((q, idx) => (idx === i ? { ...q, ...patch } : q)),
     }));
   const addQuestion = () =>
-    setForm((f) => ({ ...f, questions: [...f.questions, { id: "", prompt: "" }] }));
+    setForm((f) => ({ ...f, questions: [...f.questions, emptyQuestion()] }));
   const removeQuestion = (i: number) =>
     setForm((f) => ({ ...f, questions: f.questions.filter((_, idx) => idx !== i) }));
   const moveQuestion = (i: number, dir: -1 | 1) =>
@@ -224,7 +289,22 @@ export default function InterviewBuilder({ token }: { token: string }) {
   const cleanQuestions = useMemo(
     () =>
       form.questions
-        .map((q) => ({ id: q.id, prompt: q.prompt.trim() }))
+        .map((q) => ({
+          id: q.id,
+          prompt: q.prompt.trim(),
+          type: q.type,
+          helpText: q.helpText.trim(),
+          required: q.required,
+          maxTakes: q.maxTakes,
+          maxDurationSec: q.maxDurationSec,
+          prepTimeSec: q.prepTimeSec,
+          allowReview: q.allowReview,
+          options:
+            q.type === "multiple_choice"
+              ? q.options.map((o) => o.trim()).filter(Boolean)
+              : [],
+          ratingScale: q.ratingScale,
+        }))
         .filter((q) => q.prompt),
     [form.questions]
   );
@@ -307,6 +387,7 @@ export default function InterviewBuilder({ token }: { token: string }) {
       videoRequired: form.videoRequired,
       isActive: form.isActive,
       questions: isLive ? [] : cleanQuestions,
+      config: isLive ? null : form.capture,
       liveConfig: isLive
         ? {
             timeZone: form.live.timeZone,
@@ -424,7 +505,7 @@ export default function InterviewBuilder({ token }: { token: string }) {
         onCreateAnother={openCreate}
         onCopyLink={copyLink}
         copiedSlug={copiedSlug}
-        setQuestion={setQuestion}
+        patchQuestion={patchQuestion}
         addQuestion={addQuestion}
         removeQuestion={removeQuestion}
         moveQuestion={moveQuestion}
@@ -611,7 +692,7 @@ function Wizard(props: {
   onCreateAnother: () => void;
   onCopyLink: (slug: string) => void;
   copiedSlug: string | null;
-  setQuestion: (i: number, v: string) => void;
+  patchQuestion: (i: number, patch: Partial<QuestionForm>) => void;
   addQuestion: () => void;
   removeQuestion: (i: number) => void;
   moveQuestion: (i: number, dir: -1 | 1) => void;
@@ -642,7 +723,7 @@ function Wizard(props: {
     onCreateAnother,
     onCopyLink,
     copiedSlug,
-    setQuestion,
+    patchQuestion,
     addQuestion,
     removeQuestion,
     moveQuestion,
@@ -716,7 +797,7 @@ function Wizard(props: {
                 ) : (
                   <QuestionsStep
                     form={form}
-                    setQuestion={setQuestion}
+                    patchQuestion={patchQuestion}
                     addQuestion={addQuestion}
                     removeQuestion={removeQuestion}
                     moveQuestion={moveQuestion}
@@ -943,17 +1024,18 @@ function BasicsStep({
 
 function QuestionsStep({
   form,
-  setQuestion,
+  patchQuestion,
   addQuestion,
   removeQuestion,
   moveQuestion,
 }: {
   form: FormState;
-  setQuestion: (i: number, v: string) => void;
+  patchQuestion: (i: number, patch: Partial<QuestionForm>) => void;
   addQuestion: () => void;
   removeQuestion: (i: number) => void;
   moveQuestion: (i: number, dir: -1 | 1) => void;
 }) {
+  const continuous = form.capture.captureMode === "continuous";
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -963,55 +1045,21 @@ function QuestionsStep({
         </span>
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        Candidates record a video answer (with optional written notes) for each.
+        Choose a response type per question and fine-tune how it&apos;s captured.
       </p>
 
       <div className="space-y-3">
         {form.questions.map((q, i) => (
-          <div
+          <QuestionEditor
             key={i}
-            className="group rounded-xl border border-gray-200 bg-white p-3 flex gap-3 hover:border-gray-300 transition-colors"
-          >
-            <span className="mt-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs font-bold">
-              {i + 1}
-            </span>
-            <textarea
-              rows={2}
-              value={q.prompt}
-              onChange={(e) => setQuestion(i, e.target.value)}
-              placeholder="Type the question prompt…"
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none resize-none"
-            />
-            <div className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => moveQuestion(i, -1)}
-                disabled={i === 0}
-                className="h-6 w-6 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-30 text-xs"
-                aria-label="Move up"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                onClick={() => moveQuestion(i, 1)}
-                disabled={i === form.questions.length - 1}
-                className="h-6 w-6 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-30 text-xs"
-                aria-label="Move down"
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                onClick={() => removeQuestion(i)}
-                disabled={form.questions.length === 1}
-                className="h-6 w-6 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30 text-xs"
-                aria-label="Remove"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+            index={i}
+            question={q}
+            total={form.questions.length}
+            continuous={continuous}
+            onPatch={(patch) => patchQuestion(i, patch)}
+            onMove={(dir) => moveQuestion(i, dir)}
+            onRemove={() => removeQuestion(i)}
+          />
         ))}
       </div>
 
@@ -1021,6 +1069,289 @@ function QuestionsStep({
         className="mt-3 w-full rounded-xl border-2 border-dashed border-gray-200 py-3 text-sm font-medium text-teal-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
       >
         + Add question
+      </button>
+    </div>
+  );
+}
+
+function QuestionEditor({
+  index,
+  question,
+  total,
+  continuous,
+  onPatch,
+  onMove,
+  onRemove,
+}: {
+  index: number;
+  question: QuestionForm;
+  total: number;
+  continuous: boolean;
+  onPatch: (patch: Partial<QuestionForm>) => void;
+  onMove: (dir: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const q = question;
+  const media = isMediaType(q.type);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 hover:border-gray-300 transition-colors">
+      <div className="flex gap-3">
+        <span className="mt-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-xs font-bold">
+          {index + 1}
+        </span>
+        <div className="flex-1 min-w-0">
+          <textarea
+            rows={2}
+            value={q.prompt}
+            onChange={(e) => onPatch({ prompt: e.target.value })}
+            placeholder="Type the question prompt…"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none resize-none"
+          />
+          {/* Response type picker */}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {(Object.keys(QUESTION_TYPE_META) as QuestionType[]).map((t) => {
+              const active = q.type === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onPatch({ type: t })}
+                  title={QUESTION_TYPE_META[t].hint}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    active
+                      ? "border-teal-600 bg-teal-50 text-teal-800"
+                      : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {QUESTION_TYPE_META[t].label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onMove(-1)}
+            disabled={index === 0}
+            className="h-6 w-6 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-30 text-xs"
+            aria-label="Move up"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(1)}
+            disabled={index === total - 1}
+            className="h-6 w-6 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-30 text-xs"
+            aria-label="Move down"
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={total === 1}
+            className="h-6 w-6 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30 text-xs"
+            aria-label="Remove"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* Per-question advanced settings */}
+      <div className="mt-2 pl-10">
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            <input
+              type="checkbox"
+              checked={q.required}
+              onChange={(e) => onPatch({ required: e.target.checked })}
+              className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+            />
+            Required
+          </label>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="text-xs font-medium text-teal-700 hover:text-teal-900"
+          >
+            {open ? "Hide settings" : "Settings"} {open ? "▲" : "▾"}
+          </button>
+          <span className="text-[11px] text-gray-400">{captureSummary(q, continuous)}</span>
+        </div>
+
+        {open && (
+          <div className="mt-3 rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-3">
+            {media ? (
+              <>
+                {continuous && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    Capture mode is &quot;record whole session&quot; — per-question take
+                    and replay limits don&apos;t apply.
+                  </p>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <NumberField
+                    label="Max takes"
+                    hint="0 = unlimited"
+                    value={q.maxTakes}
+                    onChange={(v) => onPatch({ maxTakes: v })}
+                  />
+                  <NumberField
+                    label="Time limit (s)"
+                    hint="0 = none"
+                    value={q.maxDurationSec}
+                    onChange={(v) => onPatch({ maxDurationSec: v })}
+                  />
+                  <NumberField
+                    label="Prep time (s)"
+                    hint="countdown"
+                    value={q.prepTimeSec}
+                    onChange={(v) => onPatch({ prepTimeSec: v })}
+                  />
+                </div>
+                {!continuous && (
+                  <label className="flex items-start gap-2 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={q.allowReview}
+                      onChange={(e) => onPatch({ allowReview: e.target.checked })}
+                      className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <span>
+                      Allow replay before submitting
+                      <span className="block text-gray-400">
+                        Off = the candidate can&apos;t watch their answer back (one-take feel).
+                      </span>
+                    </span>
+                  </label>
+                )}
+              </>
+            ) : q.type === "multiple_choice" ? (
+              <OptionsEditor
+                options={q.options}
+                onChange={(options) => onPatch({ options })}
+              />
+            ) : q.type === "rating" ? (
+              <NumberField
+                label="Scale (max)"
+                hint="2–10"
+                value={q.ratingScale}
+                onChange={(v) => onPatch({ ratingScale: Math.min(10, Math.max(2, v || 2)) })}
+              />
+            ) : (
+              <p className="text-xs text-gray-500">
+                Written questions collect a typed answer. No capture settings.
+              </p>
+            )}
+
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">
+                Helper text (optional)
+              </label>
+              <input
+                type="text"
+                value={q.helpText}
+                onChange={(e) => onPatch({ helpText: e.target.value })}
+                placeholder="Shown under the question prompt"
+                className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function captureSummary(q: QuestionForm, continuous: boolean): string {
+  if (q.type === "text") return "Typed answer";
+  if (q.type === "multiple_choice")
+    return `${q.options.filter((o) => o.trim()).length} options`;
+  if (q.type === "rating") return `1–${q.ratingScale} scale`;
+  // media
+  if (continuous) return "Captured in session recording";
+  const parts: string[] = [q.type === "audio" ? "Audio" : "Video"];
+  parts.push(q.maxTakes > 0 ? `${q.maxTakes} take${q.maxTakes === 1 ? "" : "s"}` : "∞ takes");
+  if (q.maxDurationSec > 0) parts.push(`${q.maxDurationSec}s limit`);
+  if (!q.allowReview) parts.push("no replay");
+  return parts.join(" · ");
+}
+
+function NumberField({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-gray-500 mb-1">
+        {label} {hint && <span className="text-gray-400 font-normal">({hint})</span>}
+      </label>
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+      />
+    </div>
+  );
+}
+
+function OptionsEditor({
+  options,
+  onChange,
+}: {
+  options: string[];
+  onChange: (options: string[]) => void;
+}) {
+  const list = options.length > 0 ? options : [""];
+  const set = (i: number, v: string) =>
+    onChange(list.map((o, idx) => (idx === i ? v : o)));
+  const add = () => onChange([...list, ""]);
+  const remove = (i: number) => onChange(list.filter((_, idx) => idx !== i));
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-gray-500 mb-1">Options</label>
+      <div className="space-y-1.5">
+        {list.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={opt}
+              onChange={(e) => set(i, e.target.value)}
+              placeholder={`Option ${i + 1}`}
+              className="flex-1 px-3 py-1.5 border border-gray-200 rounded-md text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              disabled={list.length === 1}
+              className="h-7 w-7 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30 text-xs flex-shrink-0"
+              aria-label="Remove option"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={add}
+        className="mt-2 text-xs font-medium text-teal-700 hover:text-teal-900"
+      >
+        + Add option
       </button>
     </div>
   );
@@ -1153,12 +1484,81 @@ function SettingsStep({
       </div>
 
       {form.format !== "live" && (
-        <Toggle
-          checked={form.videoRequired}
-          onChange={(v) => setForm((f) => ({ ...f, videoRequired: v }))}
-          title="Require a video answer for every question"
-          desc="Candidates can't continue past a question until they've recorded a video. Leave off to allow written-only answers if their camera fails."
-        />
+        <>
+          <div>
+            <Label>Capture mode</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(
+                [
+                  [
+                    "per_question",
+                    "Per question",
+                    "Candidate records a separate clip for each video/audio question.",
+                  ],
+                  [
+                    "continuous",
+                    "Record whole session",
+                    "One recording runs the entire time, from start to finish (proctored).",
+                  ],
+                ] as const
+              ).map(([val, label, desc]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      capture: { ...f.capture, captureMode: val },
+                    }))
+                  }
+                  className={`text-left px-4 py-3 rounded-lg border transition-colors ${
+                    form.capture.captureMode === val
+                      ? "border-teal-600 bg-teal-50"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-gray-900">{label}</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">{desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label>Submission attempts</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={form.capture.maxSubmissions}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    capture: {
+                      ...f.capture,
+                      maxSubmissions: Math.min(
+                        20,
+                        Math.max(1, Math.floor(Number(e.target.value) || 1))
+                      ),
+                    },
+                  }))
+                }
+                className={`${inputCls} w-28`}
+              />
+              <span className="text-xs text-gray-500">
+                How many times a candidate may submit this round (1 = single submission).
+              </span>
+            </div>
+          </div>
+
+          <Toggle
+            checked={form.videoRequired}
+            onChange={(v) => setForm((f) => ({ ...f, videoRequired: v }))}
+            title="Require a recording for every video question"
+            desc="Candidates can't continue past a video question until they've recorded. Leave off to allow written-only answers if their camera fails. (Per-question 'Required' overrides this.)"
+          />
+        </>
       )}
       <Toggle
         checked={form.isActive}

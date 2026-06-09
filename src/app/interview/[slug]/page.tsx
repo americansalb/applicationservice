@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import type { InterviewQuestion } from "@/lib/interviews";
+import {
+  normalizeQuestions,
+  normalizeInterviewConfig,
+  type InterviewQuestion,
+} from "@/lib/interviews";
 import InterviewClient from "./InterviewClient";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +34,13 @@ export default async function InterviewPage({
 
   if (!template || !template.isActive) notFound();
 
-  const questions = (template.questions as unknown as InterviewQuestion[]) || [];
+  let questions: InterviewQuestion[];
+  try {
+    questions = normalizeQuestions(template.questions ?? []);
+  } catch {
+    questions = [];
+  }
+  const config = normalizeInterviewConfig(template.config);
 
   return (
     <InterviewClient
@@ -41,6 +51,7 @@ export default async function InterviewPage({
       intro={template.intro}
       videoRequired={template.videoRequired}
       questions={questions}
+      config={config}
     />
   );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
-import { normalizeQuestions } from "@/lib/interviews";
+import { normalizeQuestions, normalizeInterviewConfig } from "@/lib/interviews";
 import { normalizeLiveConfig } from "@/lib/liveSlots";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +81,11 @@ export async function PATCH(
         { status: 400 }
       );
     }
+  }
+  if (body.config !== undefined) {
+    // Live rounds don't carry capture config; clear it if switching to live.
+    data.config =
+      data.format === "live" ? Prisma.DbNull : normalizeInterviewConfig(body.config);
   }
 
   if (Object.keys(data).length === 0) {

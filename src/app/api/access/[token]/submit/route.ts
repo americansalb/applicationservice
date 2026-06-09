@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { uploadVideoToDrive } from "@/lib/googleDrive";
 import { sendEmail } from "@/lib/email";
 import {
-  MAX_VIDEO_BYTES,
   escapeHtml,
   roundLabel,
+  normalizeQuestions,
+  normalizeInterviewConfig,
   type InterviewQuestion,
 } from "@/lib/interviews";
+import { collectInterviewAnswers, SubmitError } from "@/lib/interviewSubmit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -29,15 +30,28 @@ export async function POST(
   if (access.interview.format === "live") {
     return NextResponse.json({ error: "This round is a live interview." }, { status: 400 });
   }
-  if (access.status !== "invited") {
+
+  const tpl = access.interview;
+  const config = normalizeInterviewConfig(tpl.config);
+  // Allow re-submission until the candidate has used all their allowed attempts.
+  if (access.attemptsUsed >= config.maxSubmissions) {
     return NextResponse.json(
-      { error: "You've already submitted this round." },
+      {
+        error:
+          config.maxSubmissions === 1
+            ? "You've already submitted this round."
+            : "You've used all of your submission attempts for this round.",
+      },
       { status: 409 }
     );
   }
 
-  const tpl = access.interview;
-  const questions = (tpl.questions as unknown as InterviewQuestion[]) || [];
+  let questions: InterviewQuestion[];
+  try {
+    questions = normalizeQuestions(tpl.questions ?? []);
+  } catch {
+    questions = [];
+  }
 
   let form: FormData;
   try {
@@ -54,53 +68,20 @@ export async function POST(
   const linkedIn = String(form.get("linkedIn") || "").trim() || null;
   const yearsExp = String(form.get("yearsExp") || "").trim() || null;
 
-  const answers: Record<string, string> = {};
-  const videoUrls: Record<string, { fileId: string; webViewLink: string }> = {};
-
-  for (const q of questions) {
-    const text = String(form.get(`answer_${q.id}`) || "").trim();
-    if (text) answers[q.id] = text;
-
-    const file = form.get(`video_${q.id}`);
-    const hasVideo = file && file instanceof File && file.size > 0;
-
-    if (tpl.videoRequired && !hasVideo) {
-      return NextResponse.json(
-        { error: "A video answer is required for every question." },
-        { status: 400 }
-      );
+  let answers: Record<string, string>;
+  let videoUrls: Record<string, { fileId: string; webViewLink: string }>;
+  try {
+    ({ answers, videoUrls } = await collectInterviewAnswers(form, questions, {
+      videoRequired: tpl.videoRequired,
+      captureMode: config.captureMode,
+      slug: tpl.slug,
+      fullName,
+    }));
+  } catch (e) {
+    if (e instanceof SubmitError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
     }
-    if (hasVideo) {
-      const f = file as File;
-      if (f.size > MAX_VIDEO_BYTES) {
-        return NextResponse.json(
-          { error: `Video for "${q.prompt.slice(0, 40)}…" exceeds 200 MB limit` },
-          { status: 413 }
-        );
-      }
-      const buffer = Buffer.from(await f.arrayBuffer());
-      const safeName = fullName.replace(/[^a-zA-Z0-9_-]+/g, "_");
-      const ext = f.name.split(".").pop() || "webm";
-      try {
-        videoUrls[q.id] = await uploadVideoToDrive({
-          filename: `${tpl.slug}_${safeName}_${q.id}_${Date.now()}.${ext}`,
-          mimeType: f.type || "video/webm",
-          buffer,
-        });
-      } catch (e) {
-        return NextResponse.json(
-          { error: e instanceof Error ? e.message : "Drive upload failed" },
-          { status: 500 }
-        );
-      }
-    }
-  }
-
-  if (Object.keys(answers).length === 0 && Object.keys(videoUrls).length === 0) {
-    return NextResponse.json(
-      { error: "Please answer at least one question before submitting." },
-      { status: 400 }
-    );
+    throw e;
   }
 
   let submissionId: string;
@@ -123,7 +104,11 @@ export async function POST(
       });
       await tx.interviewAccess.update({
         where: { id: access.id },
-        data: { status: "submitted", submissionId: submission.id },
+        data: {
+          status: "submitted",
+          submissionId: submission.id,
+          attemptsUsed: { increment: 1 },
+        },
       });
       return submission;
     });

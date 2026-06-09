@@ -7,18 +7,36 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  // Remove old admin and upsert new one
+  // Remove the legacy default admin account.
   await prisma.adminUser.deleteMany({ where: { email: "admin@aalb.org" } });
-  const hashedPassword = await bcrypt.hash("Retard$macker1008", 10);
-  await prisma.adminUser.upsert({
-    where: { email: "contact@aalb.org" },
-    update: { password: hashedPassword },
-    create: {
-      email: "contact@aalb.org",
-      password: hashedPassword,
-      name: "AALB Admin",
-    },
-  });
+
+  // Admin credentials come from the environment (see README). If ADMIN_PASSWORD
+  // is unset, existing admin users are left untouched so a redeploy can't lock
+  // anyone out — but no credentials are ever hardcoded here.
+  const adminEmail = process.env.ADMIN_EMAIL || "contact@aalb.org";
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminPassword) {
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    await prisma.adminUser.upsert({
+      where: { email: adminEmail },
+      update: { password: hashedPassword },
+      create: {
+        email: adminEmail,
+        password: hashedPassword,
+        name: "AALB Admin",
+      },
+    });
+  } else {
+    const existing = await prisma.adminUser.findUnique({
+      where: { email: adminEmail },
+    });
+    if (!existing) {
+      console.warn(
+        `No admin user found for ${adminEmail} and ADMIN_PASSWORD is not set — ` +
+          "set ADMIN_EMAIL / ADMIN_PASSWORD to create the admin login on boot."
+      );
+    }
+  }
 
   // Create sample jobs
   const jobs = [
@@ -123,7 +141,7 @@ async function main() {
   }
 
   console.log("Database seeded successfully!");
-  console.log("Admin login: contact@aalb.org");
+  console.log(`Admin login: ${adminEmail}`);
 }
 
 main()

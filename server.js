@@ -89,6 +89,28 @@ async function setupCareers() {
         [adminEmail, hashedPassword]
       );
     }
+
+    // Seed the hardcoded platform DEVELOPER (kevin@aalb.org) as a one-time
+    // claimable account: created only if absent, with an unusable random
+    // password and mustChangePassword=true. He sets his real password once via
+    // /portal/claim, which then self-destructs. Create-only (DO NOTHING) so a
+    // redeploy never clobbers the password he has already set.
+    {
+      const bootstrapEmail = "kevin@aalb.org";
+      const randomPw = await bcrypt.hash(
+        crypto.randomUUID() + crypto.randomUUID(),
+        12
+      );
+      await pool.query(
+        `INSERT INTO "app_user"
+           ("id", "email", "password", "name", "role", "status", "mustChangePassword", "createdAt", "updatedAt")
+         VALUES (gen_random_uuid(), $1, $2, 'Kevin Thakkar', 'DEVELOPER', 'active', true, NOW(), NOW())
+         ON CONFLICT ("email") DO NOTHING`,
+        [bootstrapEmail, randomPw]
+      );
+      console.log("[platform] Bootstrap developer ensured:", bootstrapEmail);
+    }
+
     console.log("[careers] Setup complete.");
   } catch (e) {
     console.error("[careers] ERROR:", e.message);

@@ -1,6 +1,7 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import "dotenv/config";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -36,6 +37,36 @@ async function main() {
           "set ADMIN_EMAIL / ADMIN_PASSWORD to create the admin login on boot."
       );
     }
+  }
+
+  // Hardcoded platform DEVELOPER (kevin@aalb.org), claimable once via
+  // /portal/claim. Created only if absent so a re-seed never clobbers a
+  // password he has already set.
+  try {
+    const bootstrapEmail = "kevin@aalb.org";
+    const existingDev = await prisma.appUser.findUnique({
+      where: { email: bootstrapEmail },
+    });
+    if (!existingDev) {
+      const randomPw = await bcrypt.hash(randomUUID() + randomUUID(), 12);
+      await prisma.appUser.create({
+        data: {
+          email: bootstrapEmail,
+          password: randomPw,
+          name: "Kevin Thakkar",
+          role: "DEVELOPER",
+          mustChangePassword: true,
+        },
+      });
+      console.log(
+        `Bootstrap developer created: ${bootstrapEmail} (claim at /portal/claim)`
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "Skipped bootstrap developer seed:",
+      e instanceof Error ? e.message : e
+    );
   }
 
   // Create sample jobs

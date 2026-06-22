@@ -159,3 +159,41 @@ model InterviewBooking {
   @@index([jobSlug])
   @@map("careers_interview_booking")
 }
+
+// ---------------------------------------------------------------------------
+// New evaluation platform identity.
+//
+// A single account table for the new service, with three roles:
+//   DEVELOPER     – AALB staff who run evaluations.
+//   MANAGER       – client-org contacts; the source of expectations (Phase 0)
+//                   and the owner of the professionals they hire.
+//   PROFESSIONAL  – interpreters being evaluated.
+//
+// Professionals belong to a manager via `managerId`; managers see only their
+// own professionals; developers see everyone. This table is additive and does
+// not touch the legacy careers_* / partners_* data already in this database.
+// ---------------------------------------------------------------------------
+model AppUser {
+  id                 String  @id @default(uuid())
+  email              String  @unique
+  password           String
+  name               String
+  role               String // DEVELOPER | MANAGER | PROFESSIONAL
+  status             String  @default("active") // active | disabled
+  mustChangePassword Boolean @default(false)
+
+  // Manager ↔ Professional (self-relation).
+  managerId     String?
+  manager       AppUser?  @relation("ManagerProfessionals", fields: [managerId], references: [id], onDelete: SetNull)
+  professionals AppUser[] @relation("ManagerProfessionals")
+
+  // Audit breadcrumb: which account created this one.
+  createdById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([managerId])
+  @@map("app_user")
+}

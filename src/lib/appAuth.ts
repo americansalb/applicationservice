@@ -1,0 +1,42 @@
+import jwt from "jsonwebtoken";
+
+// Reuses JWT_SECRET (already required in production for the existing admin
+// auth). A dedicated APP_JWT_SECRET can override it if the platforms ever need
+// independent signing keys.
+const SECRET =
+  process.env.APP_JWT_SECRET ||
+  process.env.JWT_SECRET ||
+  "aalb-portal-dev-secret-change-me";
+
+export const SESSION_COOKIE = "aalb_portal_session";
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8; // 8 hours
+
+export const APP_ROLES = ["DEVELOPER", "MANAGER", "PROFESSIONAL"] as const;
+export type AppRole = (typeof APP_ROLES)[number];
+
+export const ROLE_LABELS: Record<AppRole, string> = {
+  DEVELOPER: "Developer",
+  MANAGER: "Manager",
+  PROFESSIONAL: "Professional",
+};
+
+export type AppSessionToken = {
+  sub: string;
+  role: AppRole;
+};
+
+export function signSession(payload: AppSessionToken): string {
+  return jwt.sign(payload, SECRET, { expiresIn: SESSION_MAX_AGE_SECONDS });
+}
+
+export function verifySession(token: string): AppSessionToken | null {
+  try {
+    return jwt.verify(token, SECRET) as AppSessionToken;
+  } catch {
+    return null;
+  }
+}
+
+export function isAppRole(value: unknown): value is AppRole {
+  return typeof value === "string" && (APP_ROLES as readonly string[]).includes(value);
+}

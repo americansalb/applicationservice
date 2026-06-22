@@ -41,12 +41,15 @@ function Logo({ className, opacity }: { className?: string; opacity?: string }) 
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const isPartners = pathname.startsWith("/partners");
+  // The evaluation platform owns its own chrome (its own header/nav), so the
+  // careers site header/footer is stripped here.
+  const isPortal = pathname.startsWith("/portal");
   // Candidate-facing interview pages get a clean, distraction-free chrome:
   // branded but without the staff "Admin" / "Open Roles" navigation.
   const isInterview =
     pathname.startsWith("/interview") || pathname.startsWith("/r/");
 
-  if (isPartners) {
+  if (isPartners || isPortal) {
     return <main className="min-h-screen">{children}</main>;
   }
 

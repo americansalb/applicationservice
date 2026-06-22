@@ -38,6 +38,33 @@ async function main() {
     }
   }
 
+  // Evaluation-platform DEVELOPER account. Falls back to ADMIN_* so it works
+  // with existing config. Wrapped defensively in case the app_user table isn't
+  // present yet on this boot path.
+  const devEmail = (process.env.APP_DEV_EMAIL || adminEmail).toLowerCase();
+  const devPass = process.env.APP_DEV_PASSWORD || adminPassword;
+  if (devPass) {
+    try {
+      const hashedDev = await bcrypt.hash(devPass, 12);
+      await prisma.appUser.upsert({
+        where: { email: devEmail },
+        update: { password: hashedDev, role: "DEVELOPER", status: "active" },
+        create: {
+          email: devEmail,
+          password: hashedDev,
+          name: "AALB Developer",
+          role: "DEVELOPER",
+        },
+      });
+      console.log(`Platform developer ready: ${devEmail}`);
+    } catch (e) {
+      console.warn(
+        "Skipped platform developer seed:",
+        e instanceof Error ? e.message : e
+      );
+    }
+  }
+
   // Create sample jobs
   const jobs = [
     {

@@ -89,6 +89,27 @@ async function setupCareers() {
         [adminEmail, hashedPassword]
       );
     }
+
+    // Seed the evaluation-platform DEVELOPER account (idempotent). Falls back
+    // to the existing ADMIN_* credentials so it works with current config.
+    const devEmail = (
+      process.env.APP_DEV_EMAIL ||
+      process.env.ADMIN_EMAIL ||
+      "contact@aalb.org"
+    ).toLowerCase();
+    const devPass = process.env.APP_DEV_PASSWORD || process.env.ADMIN_PASSWORD;
+    if (devPass) {
+      const hashedDev = await bcrypt.hash(devPass, 12);
+      await pool.query(
+        `INSERT INTO "app_user"
+           ("id", "email", "password", "name", "role", "status", "mustChangePassword", "createdAt", "updatedAt")
+         VALUES (gen_random_uuid(), $1, $2, 'AALB Developer', 'DEVELOPER', 'active', false, NOW(), NOW())
+         ON CONFLICT ("email") DO UPDATE SET "password" = $2, "role" = 'DEVELOPER', "status" = 'active'`,
+        [devEmail, hashedDev]
+      );
+      console.log("[platform] Developer account ready:", devEmail);
+    }
+
     console.log("[careers] Setup complete.");
   } catch (e) {
     console.error("[careers] ERROR:", e.message);

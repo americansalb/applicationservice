@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wordmark } from "../Brand";
+import { LogoImage, Wordmark } from "../Brand";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -27,7 +27,6 @@ export default function LoginForm() {
         setLoading(false);
         return;
       }
-      // Forced reset on first login, otherwise land on the dashboard.
       router.replace(
         data.user?.mustChangePassword ? "/portal/account/password" : "/portal"
       );
@@ -39,52 +38,62 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen lg:grid lg:grid-cols-[1.05fr_0.95fr]">
       {/* Brand panel */}
-      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-teal-950 via-teal-900 to-teal-800 p-12 text-white">
+      <div className="relative hidden overflow-hidden bg-teal-950 p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
+        {/* soft warm light, top-left — not a gradient blob */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-teal-400/10 blur-3xl"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(110% 75% at 12% 0%, rgba(94,234,212,0.12), transparent 55%)",
+          }}
         />
-        <div
+        {/* oversized editorial quote mark */}
+        <span
           aria-hidden
-          className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-teal-300/10 blur-3xl"
-        />
-        <Wordmark className="relative" />
+          className="pointer-events-none absolute -left-2 top-24 select-none font-display text-[18rem] leading-none text-teal-400/10"
+        >
+          &ldquo;
+        </span>
+
+        <LogoImage className="relative h-12" />
+
         <div className="relative max-w-md">
-          <h1 className="text-4xl font-bold leading-tight tracking-tight">
-            Evaluating language professionals, with rigor and clarity.
-          </h1>
-          <p className="mt-4 text-teal-100/80">
-            A shared workspace for developers, client managers, and the
-            professionals being evaluated — credentials, language proficiency,
-            ethics, and performance, all in one place.
+          <p className="font-display text-[2.6rem] font-medium leading-[1.12] tracking-tight">
+            Language access is a right.
+          </p>
+          <p className="mt-5 text-lg leading-relaxed text-teal-100/75">
+            The portal where AALB evaluates the interpreters and translators our
+            partner institutions depend on — and stands behind them.
           </p>
         </div>
-        <p className="relative text-xs text-teal-300/70">
+
+        <p className="relative text-xs text-teal-300/60">
           &copy; {new Date().getFullYear()} Americans Against Language Barriers
         </p>
       </div>
 
       {/* Form panel */}
-      <div className="flex items-center justify-center bg-white px-6 py-12 sm:px-12">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden mb-10">
+      <div className="flex min-h-screen items-center justify-center bg-sand-50 px-6 py-12 sm:px-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-10 lg:hidden">
             <Wordmark tone="dark" />
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
             Sign in
-          </h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Use the credentials provided to your account.
+          </h1>
+          <p className="mt-2 text-[15px] text-ink-soft">
+            Use the credentials provided by AALB.
           </p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-5">
             {error && (
               <div
                 role="alert"
-                className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                className="rounded-lg border border-clay-500/30 bg-clay-100 px-4 py-3 text-sm text-clay-700"
               >
                 {error}
               </div>
@@ -93,7 +102,7 @@ export default function LoginForm() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-ink-soft"
               >
                 Email
               </label>
@@ -104,7 +113,7 @@ export default function LoginForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-gray-900 shadow-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                className={inputClass}
                 placeholder="you@organization.org"
               />
             </div>
@@ -112,7 +121,7 @@ export default function LoginForm() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-ink-soft"
               >
                 Password
               </label>
@@ -123,21 +132,21 @@ export default function LoginForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-gray-900 shadow-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
-                placeholder="••••••••••"
+                className={inputClass}
+                placeholder="Your password"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900 focus:outline-none focus:ring-2 focus:ring-teal-600/40 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-teal-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-700/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-gray-400">
+          <p className="mt-10 text-xs leading-relaxed text-ink-faint">
             Accounts are provisioned by AALB. Contact your administrator if you
             need access.
           </p>
@@ -146,3 +155,6 @@ export default function LoginForm() {
     </div>
   );
 }
+
+const inputClass =
+  "mt-1.5 block w-full rounded-lg border border-sand-300 bg-white px-3.5 py-2.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";

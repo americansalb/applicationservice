@@ -2,11 +2,12 @@ import { prisma } from "@/lib/db";
 import {
   Card,
   PageHeading,
-  StatCard,
-  ComingSoon,
-  EmptyRow,
-  RoleBadge,
+  Figures,
+  Planned,
+  EmptyState,
   EVALUATION_CRITERIA,
+  thClass,
+  tdClass,
 } from "./ui";
 import CreateUserForm from "./CreateUserForm";
 import type { SessionUser } from "@/lib/appSession";
@@ -52,8 +53,8 @@ export default async function DeveloperDashboard({
   return (
     <div>
       <PageHeading
-        title="Developer console"
-        subtitle={`Signed in as ${user.name}. You can see and provision every account.`}
+        title="Overview"
+        subtitle={`Signed in as ${user.name}. You can see and provision every account on the platform.`}
         action={
           <CreateUserForm
             mode="developer"
@@ -62,107 +63,116 @@ export default async function DeveloperDashboard({
         }
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Managers" value={managers.length} hint="Client accounts" />
-        <StatCard
-          label="Professionals"
-          value={professionals.length}
-          hint="Interpreters being evaluated"
-        />
-        <StatCard
-          label="Evaluations in progress"
-          value="—"
-          hint="Placeholder — workflow not built yet"
+      <div className="mb-10">
+        <Figures
+          items={[
+            { label: "Managers", value: managers.length, hint: "Partner contacts" },
+            {
+              label: "Professionals",
+              value: professionals.length,
+              hint: "Under evaluation",
+            },
+            {
+              label: "Evaluations",
+              value: "—",
+              hint: "Workflow not built yet",
+            },
+          ]}
         />
       </div>
 
-      {/* Managers */}
-      <Card className="mb-6 overflow-hidden">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-900">Managers</h2>
-        </div>
-        {managers.length === 0 ? (
-          <EmptyRow>No managers yet. Use “Add account” to create one.</EmptyRow>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
-                <th className="px-5 py-2 font-medium">Name</th>
-                <th className="px-5 py-2 font-medium">Email</th>
-                <th className="px-5 py-2 font-medium">Professionals</th>
-                <th className="px-5 py-2 font-medium">Added</th>
-              </tr>
-            </thead>
-            <tbody>
-              {managers.map((m) => (
-                <tr key={m.id} className="border-b border-gray-50 last:border-0">
-                  <td className="px-5 py-3 font-medium text-gray-900">{m.name}</td>
-                  <td className="px-5 py-3 text-gray-500">{m.email}</td>
-                  <td className="px-5 py-3 text-gray-700">
-                    {m._count.professionals}
-                  </td>
-                  <td className="px-5 py-3 text-gray-400">{fmtDate(m.createdAt)}</td>
+      {/* Managers register */}
+      <section className="mb-10">
+        <h2 className="mb-3 font-display text-xl font-medium text-ink">Managers</h2>
+        <Card className="overflow-hidden">
+          {managers.length === 0 ? (
+            <EmptyState>No managers yet — use “Add account” to create one.</EmptyState>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-sand-200">
+                  <th className={thClass}>Name</th>
+                  <th className={thClass}>Email</th>
+                  <th className={thClass}>Professionals</th>
+                  <th className={thClass}>Added</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+              </thead>
+              <tbody className="divide-y divide-sand-100">
+                {managers.map((m) => (
+                  <tr key={m.id}>
+                    <td className={`${tdClass} font-medium text-ink`}>{m.name}</td>
+                    <td className={`${tdClass} text-ink-soft`}>{m.email}</td>
+                    <td className={`${tdClass} text-ink-soft`}>
+                      {m._count.professionals}
+                    </td>
+                    <td className={`${tdClass} text-ink-faint`}>
+                      {fmtDate(m.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      </section>
 
-      {/* Professionals */}
-      <Card className="mb-8 overflow-hidden">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-900">Professionals</h2>
-        </div>
-        {professionals.length === 0 ? (
-          <EmptyRow>No professionals yet.</EmptyRow>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
-                <th className="px-5 py-2 font-medium">Name</th>
-                <th className="px-5 py-2 font-medium">Email</th>
-                <th className="px-5 py-2 font-medium">Manager</th>
-                <th className="px-5 py-2 font-medium">Added</th>
-              </tr>
-            </thead>
-            <tbody>
-              {professionals.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50 last:border-0">
-                  <td className="px-5 py-3 font-medium text-gray-900">{p.name}</td>
-                  <td className="px-5 py-3 text-gray-500">{p.email}</td>
-                  <td className="px-5 py-3 text-gray-700">
-                    {p.manager?.name ?? (
-                      <span className="text-gray-400">Unassigned</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-gray-400">{fmtDate(p.createdAt)}</td>
+      {/* Professionals register */}
+      <section className="mb-10">
+        <h2 className="mb-3 font-display text-xl font-medium text-ink">
+          Professionals
+        </h2>
+        <Card className="overflow-hidden">
+          {professionals.length === 0 ? (
+            <EmptyState>No professionals yet.</EmptyState>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-sand-200">
+                  <th className={thClass}>Name</th>
+                  <th className={thClass}>Email</th>
+                  <th className={thClass}>Manager</th>
+                  <th className={thClass}>Added</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+              </thead>
+              <tbody className="divide-y divide-sand-100">
+                {professionals.map((p) => (
+                  <tr key={p.id}>
+                    <td className={`${tdClass} font-medium text-ink`}>{p.name}</td>
+                    <td className={`${tdClass} text-ink-soft`}>{p.email}</td>
+                    <td className={`${tdClass} text-ink-soft`}>
+                      {p.manager?.name ?? (
+                        <span className="text-ink-faint">Unassigned</span>
+                      )}
+                    </td>
+                    <td className={`${tdClass} text-ink-faint`}>
+                      {fmtDate(p.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      </section>
 
-      {/* Placeholders for the evaluation workflow */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ComingSoon
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Planned
           title="Phase 0 — alignment with managers"
-          description="Capture each manager's expectations of the professionals they hire, and map those expectations to how we evaluate."
+          description="Sit down with each manager to capture what they expect from the professionals they hire, then map those expectations to how we evaluate."
         />
-        <ComingSoon
-          title="Evaluation pipeline"
-          description="Score professionals across the criteria below; track status from intake through final review."
-        >
-          <ul className="mt-3 grid gap-1.5 text-sm text-gray-500">
+        <Planned title="Evaluation pipeline" description="Score professionals across each area and track status from intake through final review.">
+          <ul className="mt-4 space-y-1.5">
             {EVALUATION_CRITERIA.map((c) => (
-              <li key={c.key} className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+              <li
+                key={c.key}
+                className="flex items-center gap-2.5 text-sm text-ink-soft"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-clay-500" />
                 {c.label}
               </li>
             ))}
           </ul>
-        </ComingSoon>
+        </Planned>
       </div>
     </div>
   );

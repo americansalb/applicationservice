@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { AppRole } from "@/lib/appAuth";
 
-// The evaluation criteria the service will assess. Rendered as placeholders
-// for now — the actual scoring workflow is not built yet.
+// The areas each professional is evaluated on. Rendered as a standards-style
+// rubric for now — the scoring workflow itself is not built yet.
 export const EVALUATION_CRITERIA = [
   {
     key: "credentials",
@@ -22,7 +22,7 @@ export const EVALUATION_CRITERIA = [
   {
     key: "virtual",
     label: "Virtual performance",
-    desc: "Interpreting performance in remote / video settings.",
+    desc: "Interpreting performance in remote and video settings.",
   },
   {
     key: "live",
@@ -39,9 +39,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div
-      className={`rounded-2xl border border-gray-200 bg-white shadow-sm ${className}`}
-    >
+    <div className={`rounded-xl border border-sand-200 bg-white ${className}`}>
       {children}
     </div>
   );
@@ -57,43 +55,51 @@ export function PageHeading({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
           {title}
         </h1>
-        {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
+            {subtitle}
+          </p>
+        )}
       </div>
       {action}
     </div>
   );
 }
 
-export function StatCard({
-  label,
-  value,
-  hint,
+// Editorial "masthead" figures — serif numerals separated by warm rules,
+// instead of a row of generic stat tiles.
+export function Figures({
+  items,
 }: {
-  label: string;
-  value: ReactNode;
-  hint?: string;
+  items: { label: string; value: ReactNode; hint?: string }[];
 }) {
   return (
-    <Card className="p-5">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-teal-900">
-        {value}
-      </p>
-      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+    <Card className="flex flex-col divide-y divide-sand-200 sm:flex-row sm:divide-x sm:divide-y-0">
+      {items.map((it) => (
+        <div key={it.label} className="flex-1 px-6 py-5">
+          <div className="font-display text-[28px] font-medium leading-none text-teal-900">
+            {it.value}
+          </div>
+          <div className="mt-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
+            {it.label}
+          </div>
+          {it.hint && <div className="mt-1 text-xs text-ink-faint/80">{it.hint}</div>}
+        </div>
+      ))}
     </Card>
   );
 }
 
 export function RoleBadge({ role }: { role: AppRole }) {
   const styles: Record<AppRole, string> = {
-    DEVELOPER: "bg-teal-100 text-teal-800 ring-teal-600/20",
-    MANAGER: "bg-amber-100 text-amber-800 ring-amber-600/20",
-    PROFESSIONAL: "bg-sky-100 text-sky-800 ring-sky-600/20",
+    DEVELOPER: "bg-teal-50 text-teal-800 ring-teal-700/15",
+    MANAGER: "bg-clay-100 text-clay-700 ring-clay-600/20",
+    PROFESSIONAL: "bg-sand-100 text-ink-soft ring-sand-300",
   };
   const labels: Record<AppRole, string> = {
     DEVELOPER: "Developer",
@@ -102,23 +108,37 @@ export function RoleBadge({ role }: { role: AppRole }) {
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${styles[role]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${styles[role]}`}
     >
       {labels[role]}
     </span>
   );
 }
 
-export function SoonPill() {
+export function StatusTag({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "pending" | "teal";
+}) {
+  const tones = {
+    neutral: "bg-sand-100 text-ink-faint ring-sand-300",
+    pending: "bg-clay-100 text-clay-700 ring-clay-600/20",
+    teal: "bg-teal-50 text-teal-800 ring-teal-700/15",
+  } as const;
   return (
-    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 ring-1 ring-inset ring-gray-200">
-      Soon
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[tone]}`}
+    >
+      {children}
     </span>
   );
 }
 
-// A clearly-marked placeholder panel for workflows that aren't built yet.
-export function ComingSoon({
+// A quiet, intentional placeholder for workflows still to be built — reads as
+// "planned", not as a loud "coming soon" chip.
+export function Planned({
   title,
   description,
   children,
@@ -128,21 +148,49 @@ export function ComingSoon({
   children?: ReactNode;
 }) {
   return (
-    <Card className="border-dashed p-6">
-      <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-        <SoonPill />
-      </div>
+    <div className="rounded-xl border border-dashed border-sand-300 bg-sand-100/40 p-6">
+      <div className="font-display text-xs italic text-ink-faint">Planned</div>
+      <h3 className="mt-1 font-display text-lg font-medium text-ink">{title}</h3>
       {description && (
-        <p className="mt-2 max-w-prose text-sm text-gray-500">{description}</p>
+        <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-soft">
+          {description}
+        </p>
       )}
       {children}
-    </Card>
+    </div>
   );
 }
 
-export function EmptyRow({ children }: { children: ReactNode }) {
+// Five dots, one per evaluation area — a meaningful, compact progress cue.
+export function CriteriaDots({
+  done = 0,
+  total = EVALUATION_CRITERIA.length,
+}: {
+  done?: number;
+  total?: number;
+}) {
   return (
-    <div className="px-5 py-10 text-center text-sm text-gray-400">{children}</div>
+    <div
+      className="flex items-center gap-1.5"
+      title={`${done} of ${total} areas complete`}
+    >
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-2 w-2 rounded-full ${i < done ? "bg-teal-600" : "bg-sand-300"}`}
+        />
+      ))}
+    </div>
   );
 }
+
+export function EmptyState({ children }: { children: ReactNode }) {
+  return (
+    <div className="px-6 py-12 text-center text-sm text-ink-faint">{children}</div>
+  );
+}
+
+// Shared table cell classes for the warm "register" look.
+export const thClass =
+  "px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-faint";
+export const tdClass = "px-6 py-4 align-middle";

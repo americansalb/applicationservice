@@ -15,10 +15,10 @@ export default async function PasswordPage() {
       user={{ name: user.name, email: user.email, role: user.role }}
     >
       <div className="mx-auto max-w-lg">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
           {user.mustChangePassword ? "Set your password" : "Change password"}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1.5 text-[15px] text-ink-soft">
           {user.mustChangePassword
             ? "Choose a new password to finish setting up your account."
             : "Update the password used to sign in to your account."}

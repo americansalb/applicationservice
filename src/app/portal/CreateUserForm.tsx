@@ -31,9 +31,7 @@ export default function CreateUserForm({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"MANAGER" | "PROFESSIONAL">(
-    mode === "manager" ? "PROFESSIONAL" : "PROFESSIONAL"
-  );
+  const [role, setRole] = useState<"MANAGER" | "PROFESSIONAL">("PROFESSIONAL");
   const [managerId, setManagerId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +70,7 @@ export default function CreateUserForm({
         return;
       }
       setSuccess(
-        `Account created for ${data.user.email}. They'll be asked to set a new password on first sign-in.`
+        `Account created for ${data.user.email}. They'll set their own password on first sign-in.`
       );
       reset();
       router.refresh();
@@ -92,7 +90,7 @@ export default function CreateUserForm({
           setOpen(true);
           setSuccess(null);
         }}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-teal-800 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950"
       >
         <span className="text-base leading-none">+</span>
         {mode === "manager" ? "Add professional" : "Add account"}
@@ -101,21 +99,21 @@ export default function CreateUserForm({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="w-full rounded-xl border border-sand-200 bg-white p-6 sm:w-[34rem]">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="font-display text-lg font-medium text-ink">
           {mode === "manager" ? "Add a professional" : "Add an account"}
         </h3>
         <button
           onClick={() => setOpen(false)}
-          className="text-sm text-gray-400 hover:text-gray-600"
+          className="text-sm text-ink-faint transition hover:text-ink"
         >
           Cancel
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-clay-500/30 bg-clay-100 px-3 py-2 text-sm text-clay-700">
           {error}
         </div>
       )}
@@ -181,12 +179,12 @@ export default function CreateUserForm({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
-              placeholder="At least 10 chars, mixed case, number & symbol"
+              placeholder="10+ chars, mixed case, number & symbol"
             />
             <button
               type="button"
               onClick={() => setPassword(generatePassword())}
-              className="shrink-0 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              className="shrink-0 rounded-lg border border-sand-300 px-3 text-sm font-medium text-ink-soft transition hover:bg-sand-100"
             >
               Generate
             </button>
@@ -197,7 +195,7 @@ export default function CreateUserForm({
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900 disabled:opacity-60"
+            className="rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950 disabled:opacity-60"
           >
             {loading ? "Creating…" : "Create account"}
           </button>
@@ -205,7 +203,7 @@ export default function CreateUserForm({
       </form>
 
       {success && (
-        <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        <div className="mt-4 rounded-lg border border-teal-700/20 bg-teal-50 px-3 py-2 text-sm text-teal-800">
           {success}
         </div>
       )}
@@ -214,7 +212,7 @@ export default function CreateUserForm({
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20";
+  "block w-full rounded-lg border border-sand-300 bg-white px-3 py-2 text-sm text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
 
 function Field({
   label,
@@ -227,9 +225,7 @@ function Field({
 }) {
   return (
     <label className={`block ${full ? "sm:col-span-2" : ""}`}>
-      <span className="mb-1 block text-xs font-medium text-gray-600">
-        {label}
-      </span>
+      <span className="mb-1 block text-xs font-medium text-ink-soft">{label}</span>
       {children}
     </label>
   );

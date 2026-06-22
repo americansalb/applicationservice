@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputClass =
-  "mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-gray-900 shadow-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20";
+  "mt-1.5 block w-full rounded-lg border border-sand-300 bg-white px-3.5 py-2.5 text-ink shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
 
 export default function ChangePasswordForm({
   mustChange,
@@ -47,23 +47,20 @@ export default function ChangePasswordForm({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-sand-200 bg-white p-6">
       {mustChange && (
-        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          For security, you need to set a new password before continuing.
+        <div className="mb-5 rounded-lg border border-clay-500/30 bg-clay-100 px-4 py-3 text-sm text-clay-700">
+          For security, please set a new password before continuing.
         </div>
       )}
       {error && (
-        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-5 rounded-lg border border-clay-500/30 bg-clay-100 px-4 py-3 text-sm text-clay-700">
           {error}
         </div>
       )}
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label
-            htmlFor="current"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="current" className="block text-sm font-medium text-ink-soft">
             Current password
           </label>
           <input
@@ -77,10 +74,7 @@ export default function ChangePasswordForm({
           />
         </div>
         <div>
-          <label
-            htmlFor="next"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="next" className="block text-sm font-medium text-ink-soft">
             New password
           </label>
           <input
@@ -92,16 +86,13 @@ export default function ChangePasswordForm({
             onChange={(e) => setNext(e.target.value)}
             className={inputClass}
           />
-          <p className="mt-1.5 text-xs text-gray-400">
-            At least 10 characters, with upper- and lower-case letters, a
-            number, and a symbol.
+          <p className="mt-1.5 text-xs text-ink-faint">
+            At least 10 characters, with upper- and lower-case letters, a number,
+            and a symbol.
           </p>
         </div>
         <div>
-          <label
-            htmlFor="confirm"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="confirm" className="block text-sm font-medium text-ink-soft">
             Confirm new password
           </label>
           <input
@@ -117,7 +108,7 @@ export default function ChangePasswordForm({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900 disabled:opacity-60"
+          className="w-full rounded-lg bg-teal-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950 disabled:opacity-60"
         >
           {loading ? "Saving…" : "Save password"}
         </button>

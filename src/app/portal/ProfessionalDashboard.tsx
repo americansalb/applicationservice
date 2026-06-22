@@ -1,4 +1,4 @@
-import { Card, PageHeading, ComingSoon, EVALUATION_CRITERIA } from "./ui";
+import { Card, PageHeading, Planned, StatusTag, EVALUATION_CRITERIA } from "./ui";
 import type { SessionUser } from "@/lib/appSession";
 
 export default async function ProfessionalDashboard({
@@ -12,32 +12,36 @@ export default async function ProfessionalDashboard({
     <div>
       <PageHeading
         title={`Welcome, ${firstName}`}
-        subtitle="Your evaluation as an interpreter will be tracked here across each area."
+        subtitle="Your evaluation as an interpreter is organised around the areas below. Each will open as your evaluation begins."
       />
 
-      <Card className="mb-6 overflow-hidden">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Your evaluation
-          </h2>
-        </div>
-        <ul className="divide-y divide-gray-50">
-          {EVALUATION_CRITERIA.map((c) => (
-            <li key={c.key} className="flex items-center gap-4 px-5 py-4">
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{c.label}</p>
-                <p className="text-sm text-gray-500">{c.desc}</p>
-              </div>
-              {/* Placeholder status until the evaluation workflow is built. */}
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-inset ring-gray-200">
-                Not started
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <section className="mb-8">
+        <h2 className="mb-3 font-display text-xl font-medium text-ink">
+          Areas of evaluation
+        </h2>
+        <Card className="overflow-hidden">
+          <ol className="divide-y divide-sand-100">
+            {EVALUATION_CRITERIA.map((c, i) => (
+              <li key={c.key} className="flex items-start gap-5 px-6 py-5">
+                <span className="mt-0.5 font-display text-lg font-medium tabular-nums text-clay-600">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="flex-1">
+                  <p className="font-display text-lg font-medium text-ink">
+                    {c.label}
+                  </p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-ink-soft">
+                    {c.desc}
+                  </p>
+                </div>
+                <StatusTag tone="neutral">Not started</StatusTag>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      </section>
 
-      <ComingSoon
+      <Planned
         title="Action items"
         description="Tasks for you — scheduling sessions, uploading credentials, completing assessments — will appear here as your evaluation begins."
       />

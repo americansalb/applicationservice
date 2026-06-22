@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// The legacy careers + partners app is retained in the codebase and database,
-// but is no longer publicly accessible: the public is sent to the new portal.
-// It is not deleted, just hidden. Set LEGACY_ENABLED=true to serve it again
-// (e.g. temporary internal access or a rollback) without any code change.
-const LEGACY_ENABLED = process.env.LEGACY_ENABLED === "true";
+// The new evaluation platform is served on its OWN host (e.g. testing.aalb.org),
+// configured via PORTAL_HOST. The careers job board (careers.aalb.org) and any
+// other host keep working exactly as before.
+//
+// Safe default: if PORTAL_HOST is unset, this middleware is a no-op, so nothing
+// is gated and the existing site is untouched.
+const PORTAL_HOST = (process.env.PORTAL_HOST || "").toLowerCase();
 
-// The new platform plus framework/infra paths that must always resolve.
+// The platform plus framework/infra paths that must always resolve.
 function isPlatformOrInfra(pathname: string): boolean {
   return (
     pathname === "/portal" ||
@@ -22,21 +24,31 @@ function isPlatformOrInfra(pathname: string): boolean {
 }
 
 export function middleware(req: NextRequest) {
-  if (LEGACY_ENABLED) return NextResponse.next();
+  if (!PORTAL_HOST) return NextResponse.next();
 
+  const host = (req.headers.get("host") || "").split(":")[0].toLowerCase();
   const { pathname } = req.nextUrl;
-  if (isPlatformOrInfra(pathname)) return NextResponse.next();
 
-  // Legacy API: return 404 rather than redirect an API client to an HTML page.
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (host === PORTAL_HOST) {
+    // Portal domain: serve only the platform; keep the legacy site off it.
+    if (isPlatformOrInfra(pathname)) return NextResponse.next();
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/portal/login";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
-  // Everything else is the legacy site: send the public to the new portal.
-  const url = req.nextUrl.clone();
-  url.pathname = "/portal/login";
-  url.search = "";
-  return NextResponse.redirect(url);
+  // Any other host (careers, etc.): leave the existing site untouched, but send
+  // the portal routes to the portal domain so the two stay cleanly separated.
+  if (pathname === "/portal" || pathname.startsWith("/portal/")) {
+    return NextResponse.redirect(
+      `https://${PORTAL_HOST}${pathname}${req.nextUrl.search}`
+    );
+  }
+  return NextResponse.next();
 }
 
 export const config = {

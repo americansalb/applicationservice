@@ -95,12 +95,15 @@ export default function PortalChrome({
                 key={item.label}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                   active
                     ? "bg-white/10 font-medium text-white shadow-sm"
                     : "text-teal-100/80 hover:bg-white/5 hover:text-white"
                 }`}
               >
+                {active && (
+                  <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-clay-400" />
+                )}
                 <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 {item.label}
               </Link>

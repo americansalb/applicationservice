@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 import type { AppRole } from "@/lib/appAuth";
 
 // The areas each professional is evaluated on. Rendered as a standards-style
@@ -263,9 +264,37 @@ export function CriteriaDots({
   );
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
+export function EmptyState({
+  icon,
+  children,
+}: {
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className="px-6 py-14 text-center text-sm text-ink-faint">{children}</div>
+    <div className="flex flex-col items-center px-6 py-14 text-center">
+      {icon && (
+        <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-sand-100 text-ink-faint ring-1 ring-inset ring-sand-200">
+          {icon}
+        </span>
+      )}
+      <p className="text-sm text-ink-faint">{children}</p>
+    </div>
+  );
+}
+
+// Shown in place of content when a data load fails, instead of a hard 500.
+export function LoadError({ label = "this section" }: { label?: string }) {
+  return (
+    <Card className="flex flex-col items-center px-6 py-12 text-center">
+      <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-clay-100 text-clay-600 ring-1 ring-inset ring-clay-500/20">
+        <AlertTriangle className="h-5 w-5" strokeWidth={1.75} />
+      </span>
+      <p className="text-sm font-medium text-ink">Couldn&apos;t load {label}</p>
+      <p className="mt-1 text-sm text-ink-faint">
+        This is usually temporary. Please refresh to try again.
+      </p>
+    </Card>
   );
 }
 

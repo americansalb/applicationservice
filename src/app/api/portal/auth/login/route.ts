@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { isConnectivityError } from "@/lib/dbRetry";
+import { isConnectivityError, withDbRetry } from "@/lib/dbRetry";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { clientIp, isSameOrigin } from "@/lib/appRequest";
 import {
   signSession,
   SESSION_COOKIE,
@@ -18,8 +19,11 @@ const DUMMY_HASH = bcrypt.hashSync("unused-placeholder-password", 12);
 
 export async function POST(req: NextRequest) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!isSameOrigin(req)) {
+      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+
+    const ip = clientIp(req);
     const rl = checkRateLimit(`portal-login:${ip}`);
     if (!rl.allowed) {
       return NextResponse.json(
@@ -35,14 +39,17 @@ export async function POST(req: NextRequest) {
     const email =
       typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";
-    if (!email || !password) {
+    // Bound inputs (bcrypt only uses the first 72 bytes; huge bodies are abuse).
+    if (!email || !password || email.length > 320 || password.length > 200) {
       return NextResponse.json(
         { error: "Email and password are required." },
         { status: 400 }
       );
     }
 
-    const user = await prisma.appUser.findUnique({ where: { email } });
+    const user = await withDbRetry("portal.login", () =>
+      prisma.appUser.findUnique({ where: { email } })
+    );
     const valid = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
 
     // Single generic message for every failure mode (no email/password leak).

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { withDbRetry } from "@/lib/dbRetry";
 import {
   SESSION_COOKIE,
   verifySession,
@@ -18,7 +19,7 @@ export type SessionUser = {
 };
 
 // Resolve a session from a raw cookie value. The DB lookup is the source of
-// truth — a token alone never grants access, so disabled/deleted accounts are
+// truth: a token alone never grants access, so disabled/deleted accounts are
 // rejected immediately even while their JWT is still unexpired.
 export async function userFromToken(
   token: string | undefined | null
@@ -28,18 +29,20 @@ export async function userFromToken(
   if (!payload) return null;
 
   try {
-    const user = await prisma.appUser.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        mustChangePassword: true,
-        managerId: true,
-      },
-    });
+    const user = await withDbRetry("portal.session", () =>
+      prisma.appUser.findUnique({
+        where: { id: payload.sub },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+          mustChangePassword: true,
+          managerId: true,
+        },
+      })
+    );
     if (!user || user.status !== "active") return null;
     return user as SessionUser;
   } catch (e) {

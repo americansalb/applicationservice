@@ -1,5 +1,6 @@
 import { Building2, Users, ClipboardCheck, Workflow } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { withDbRetry } from "@/lib/dbRetry";
 import {
   Card,
   CardHeader,
@@ -8,6 +9,7 @@ import {
   Avatar,
   Planned,
   EmptyState,
+  LoadError,
   EVALUATION_CRITERIA,
   thClass,
   tdClass,
@@ -23,41 +25,63 @@ function fmtDate(d: Date) {
   });
 }
 
+const SUBTITLE = "Manage partner organizations, their professionals, and evaluations.";
+
 export default async function DeveloperDashboard({
   user,
 }: {
   user: SessionUser;
 }) {
-  const [managers, professionals] = await Promise.all([
-    prisma.appUser.findMany({
-      where: { role: "MANAGER" },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        _count: { select: { professionals: true } },
-      },
-    }),
-    prisma.appUser.findMany({
-      where: { role: "PROFESSIONAL" },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        manager: { select: { id: true, name: true } },
-      },
-    }),
-  ]);
+  function loadOverview() {
+    return Promise.all([
+      prisma.appUser.findMany({
+        where: { role: "MANAGER" },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          _count: { select: { professionals: true } },
+        },
+      }),
+      prisma.appUser.findMany({
+        where: { role: "PROFESSIONAL" },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          manager: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+  }
+
+  let data: Awaited<ReturnType<typeof loadOverview>> | null = null;
+  try {
+    data = await withDbRetry("portal.dev.overview", loadOverview);
+  } catch (e) {
+    console.error("[portal] developer overview load failed:", e);
+  }
+
+  if (!data) {
+    return (
+      <div>
+        <PageHeading title="Overview" subtitle={SUBTITLE} />
+        <LoadError label="the overview" />
+      </div>
+    );
+  }
+
+  const [managers, professionals] = data;
 
   return (
     <div>
       <PageHeading
         title="Overview"
-        subtitle="Manage partner organizations, their professionals, and evaluations."
+        subtitle={`Signed in as ${user.name}. ${SUBTITLE}`}
         action={
           <CreateUserForm
             mode="developer"
@@ -91,7 +115,9 @@ export default async function DeveloperDashboard({
         <Card className="overflow-hidden">
           <CardHeader title="Managers" hint="Partner organization contacts" />
           {managers.length === 0 ? (
-            <EmptyState>No managers yet. Use “Add account” to create one.</EmptyState>
+            <EmptyState icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />}>
+              No managers yet. Use “Add account” to create one.
+            </EmptyState>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -130,7 +156,9 @@ export default async function DeveloperDashboard({
         <Card className="overflow-hidden">
           <CardHeader title="Professionals" hint="Interpreters under evaluation" />
           {professionals.length === 0 ? (
-            <EmptyState>No professionals yet.</EmptyState>
+            <EmptyState icon={<Users className="h-5 w-5" strokeWidth={1.75} />}>
+              No professionals yet.
+            </EmptyState>
           ) : (
             <table className="w-full text-sm">
               <thead>

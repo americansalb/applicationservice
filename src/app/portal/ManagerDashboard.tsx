@@ -1,5 +1,6 @@
 import { Users, ListChecks, Workflow } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { withDbRetry } from "@/lib/dbRetry";
 import {
   Card,
   CardHeader,
@@ -8,6 +9,7 @@ import {
   Avatar,
   Planned,
   EmptyState,
+  LoadError,
   StatusTag,
   CriteriaDots,
 } from "./ui";
@@ -19,19 +21,37 @@ export default async function ManagerDashboard({
 }: {
   user: SessionUser;
 }) {
-  const team = await prisma.appUser.findMany({
-    where: { managerId: user.id, role: "PROFESSIONAL" },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, email: true, createdAt: true },
-  });
-
   const firstName = user.name.split(" ")[0] || user.name;
+  const subtitle = `Welcome, ${firstName}. Track the professionals on your account and their evaluation status.`;
+
+  let team: { id: string; name: string; email: string; createdAt: Date }[] | null =
+    null;
+  try {
+    team = await withDbRetry("portal.manager.roster", () =>
+      prisma.appUser.findMany({
+        where: { managerId: user.id, role: "PROFESSIONAL" },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, email: true, createdAt: true },
+      })
+    );
+  } catch (e) {
+    console.error("[portal] manager roster load failed:", e);
+  }
+
+  if (!team) {
+    return (
+      <div>
+        <PageHeading title="Your professionals" subtitle={subtitle} />
+        <LoadError label="your roster" />
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeading
         title="Your professionals"
-        subtitle={`Welcome, ${firstName}. Track the professionals on your account and their evaluation status.`}
+        subtitle={subtitle}
         action={<CreateUserForm mode="manager" />}
       />
 
@@ -60,7 +80,7 @@ export default async function ManagerDashboard({
         <Card className="overflow-hidden">
           <CardHeader title="Roster" hint="Professionals on your account" />
           {team.length === 0 ? (
-            <EmptyState>
+            <EmptyState icon={<Users className="h-5 w-5" strokeWidth={1.75} />}>
               No professionals yet. Use “Add professional” to invite one.
             </EmptyState>
           ) : (

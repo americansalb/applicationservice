@@ -16,6 +16,7 @@ export type SessionUser = {
   status: string;
   mustChangePassword: boolean;
   managerId: string | null;
+  organizationId: string | null;
 };
 
 // Resolve a session from a raw cookie value. The DB lookup is the source of
@@ -40,6 +41,7 @@ export async function userFromToken(
           status: true,
           mustChangePassword: true,
           managerId: true,
+          organizationId: true,
         },
       })
     );

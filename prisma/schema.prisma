@@ -187,6 +187,11 @@ model AppUser {
   manager       AppUser?  @relation("ManagerProfessionals", fields: [managerId], references: [id], onDelete: SetNull)
   professionals AppUser[] @relation("ManagerProfessionals")
 
+  // Organization the user belongs to (managers + professionals). Developers
+  // (AALB staff) have no organization.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
   // Audit breadcrumb: which account created this one.
   createdById String?
 
@@ -195,5 +200,44 @@ model AppUser {
 
   @@index([role])
   @@index([managerId])
+  @@index([organizationId])
   @@map("app_user")
+}
+
+// A client institution (e.g. University Hospital). Managers and professionals
+// belong to one; the agreement, Phase 0 standards, and reporting hang off it.
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  status      String   @default("active") // active | disabled
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     AppUser[]
+  invitations Invitation[]
+
+  @@map("app_organization")
+}
+
+// A pending invite to join an organization. The invitee opens the unguessable
+// link and sets their own password; the invite is single-use and expires.
+model Invitation {
+  id             String       @id @default(uuid())
+  token          String       @unique
+  email          String
+  name           String?
+  role           String // MANAGER | PROFESSIONAL
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedById    String?
+  status         String       @default("pending") // pending | accepted | revoked
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedUserId String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("app_invitation")
 }

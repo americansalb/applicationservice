@@ -1,6 +1,7 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import "dotenv/config";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -38,31 +39,34 @@ async function main() {
     }
   }
 
-  // Evaluation-platform DEVELOPER account. Falls back to ADMIN_* so it works
-  // with existing config. Wrapped defensively in case the app_user table isn't
-  // present yet on this boot path.
-  const devEmail = (process.env.APP_DEV_EMAIL || adminEmail).toLowerCase();
-  const devPass = process.env.APP_DEV_PASSWORD || adminPassword;
-  if (devPass) {
-    try {
-      const hashedDev = await bcrypt.hash(devPass, 12);
-      await prisma.appUser.upsert({
-        where: { email: devEmail },
-        update: { password: hashedDev, role: "DEVELOPER", status: "active" },
-        create: {
-          email: devEmail,
-          password: hashedDev,
-          name: "AALB Developer",
+  // Hardcoded platform DEVELOPER (kevin@aalb.org), claimable once via
+  // /portal/claim. Created only if absent so a re-seed never clobbers a
+  // password he has already set.
+  try {
+    const bootstrapEmail = "kevin@aalb.org";
+    const existingDev = await prisma.appUser.findUnique({
+      where: { email: bootstrapEmail },
+    });
+    if (!existingDev) {
+      const randomPw = await bcrypt.hash(randomUUID() + randomUUID(), 12);
+      await prisma.appUser.create({
+        data: {
+          email: bootstrapEmail,
+          password: randomPw,
+          name: "Kevin Thakkar",
           role: "DEVELOPER",
+          mustChangePassword: true,
         },
       });
-      console.log(`Platform developer ready: ${devEmail}`);
-    } catch (e) {
-      console.warn(
-        "Skipped platform developer seed:",
-        e instanceof Error ? e.message : e
+      console.log(
+        `Bootstrap developer created: ${bootstrapEmail} (claim at /portal/claim)`
       );
     }
+  } catch (e) {
+    console.warn(
+      "Skipped bootstrap developer seed:",
+      e instanceof Error ? e.message : e
+    );
   }
 
   // Create sample jobs

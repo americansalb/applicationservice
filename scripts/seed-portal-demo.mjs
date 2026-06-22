@@ -11,6 +11,7 @@
 import "dotenv/config";
 import pg from "pg";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -35,6 +36,15 @@ async function main() {
     password: "DevPass!2345",
     name: "AALB Developer",
     role: "DEVELOPER",
+  });
+
+  // Hardcoded bootstrap developer, claimable once via /portal/claim.
+  await upsert({
+    email: "kevin@aalb.org",
+    password: randomUUID() + randomUUID(),
+    name: "Kevin Thakkar",
+    role: "DEVELOPER",
+    mustChange: true,
   });
 
   const managerId = await upsert({

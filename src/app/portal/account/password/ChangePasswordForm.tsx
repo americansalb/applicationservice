@@ -47,7 +47,7 @@ export default function ChangePasswordForm({
   }
 
   return (
-    <div className="rounded-xl border border-sand-200 bg-white p-6">
+    <div className="rounded-2xl border border-sand-200/80 bg-white p-6 shadow-card sm:p-8">
       {mustChange && (
         <div className="mb-5 rounded-lg border border-clay-500/30 bg-clay-100 px-4 py-3 text-sm text-clay-700">
           For security, please set a new password before continuing.

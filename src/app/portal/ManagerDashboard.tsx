@@ -1,8 +1,11 @@
+import { Users, ListChecks, Workflow } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   Card,
+  CardHeader,
   PageHeading,
-  Figures,
+  StatCard,
+  Avatar,
   Planned,
   EmptyState,
   StatusTag,
@@ -28,43 +31,57 @@ export default async function ManagerDashboard({
     <div>
       <PageHeading
         title="Your professionals"
-        subtitle={`Welcome, ${firstName}. Track the professionals under your account and where each stands in the evaluation.`}
+        subtitle={`Welcome, ${firstName}. Track the professionals on your account and their evaluation status.`}
         action={<CreateUserForm mode="manager" />}
       />
 
-      <div className="mb-10">
-        <Figures
-          items={[
-            { label: "Professionals", value: team.length, hint: "Under your account" },
-            { label: "Action items", value: "—", hint: "None outstanding" },
-            { label: "Phase 0", value: "Pending", hint: "Expectations not captured" },
-          ]}
+      <div className="mb-10 grid gap-4 sm:grid-cols-3">
+        <StatCard
+          icon={<Users className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          label="Professionals"
+          value={team.length}
+          hint="On your account"
+        />
+        <StatCard
+          icon={<ListChecks className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          label="Action items"
+          value={0}
+          hint="None outstanding"
+        />
+        <StatCard
+          icon={<Workflow className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          label="Phase 0"
+          value="Pending"
+          hint="Expectations not captured"
         />
       </div>
 
       <section className="mb-10">
-        <h2 className="mb-3 font-display text-xl font-medium text-ink">Roster</h2>
         <Card className="overflow-hidden">
+          <CardHeader title="Roster" hint="Professionals on your account" />
           {team.length === 0 ? (
             <EmptyState>
-              No professionals yet — use “Add professional” to invite one.
+              No professionals yet. Use “Add professional” to invite one.
             </EmptyState>
           ) : (
             <ul className="divide-y divide-sand-100">
               {team.map((p) => (
                 <li
                   key={p.id}
-                  className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-4"
+                  className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-4 transition hover:bg-sand-50/70"
                 >
-                  <div className="min-w-[12rem] flex-1">
-                    <p className="font-medium text-ink">{p.name}</p>
-                    <p className="text-sm text-ink-soft">{p.email}</p>
+                  <div className="flex min-w-[14rem] flex-1 items-center gap-3">
+                    <Avatar name={p.name} />
+                    <div className="min-w-0">
+                      <p className="font-medium text-ink">{p.name}</p>
+                      <p className="truncate text-sm text-ink-soft">{p.email}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <CriteriaDots done={0} />
                     <span className="text-xs text-ink-faint">0 of 5 areas</span>
                   </div>
-                  <StatusTag tone="pending">Phase 0 — awaiting input</StatusTag>
+                  <StatusTag tone="pending">Awaiting Phase 0</StatusTag>
                 </li>
               ))}
             </ul>
@@ -72,14 +89,16 @@ export default async function ManagerDashboard({
         </Card>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Planned
-          title="Phase 0: your expectations"
-          description="We'll work with you to define what “qualified” means for the professionals you hire, then align those expectations with how they're evaluated."
+          icon={<Workflow className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          title="Phase 0 expectations"
+          description="Define the competencies and expectations for your professionals so evaluations reflect your organization's standards."
         />
         <Planned
+          icon={<ListChecks className="h-[18px] w-[18px]" strokeWidth={1.75} />}
           title="Action items"
-          description="Tasks for you and your professionals will appear here as evaluations get underway."
+          description="Tasks for you and your professionals will appear here as evaluations begin."
         />
       </div>
     </div>

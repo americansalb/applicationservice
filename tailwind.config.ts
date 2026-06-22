@@ -52,6 +52,12 @@ const config: Config = {
           "sans-serif",
         ],
       },
+      boxShadow: {
+        card: "0 1px 2px rgba(36, 31, 26, 0.04), 0 1px 3px rgba(36, 31, 26, 0.05)",
+        raised:
+          "0 6px 16px -6px rgba(36, 31, 26, 0.12), 0 2px 6px -2px rgba(36, 31, 26, 0.08)",
+        panel: "0 24px 60px -24px rgba(4, 47, 46, 0.45)",
+      },
     },
   },
   plugins: [],

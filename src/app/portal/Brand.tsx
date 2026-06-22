@@ -22,7 +22,7 @@ export function LogoImage({ className = "h-10" }: { className?: string }) {
     <img
       ref={ref}
       src={LOGO_SRC}
-      alt="AALB — Americans Against Language Barriers"
+      alt="AALB, Americans Against Language Barriers"
       className={className}
       onError={() => setFailed(true)}
     />

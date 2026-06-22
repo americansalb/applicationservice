@@ -1,8 +1,11 @@
+import { Building2, Users, ClipboardCheck, Workflow } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   Card,
+  CardHeader,
   PageHeading,
-  Figures,
+  StatCard,
+  Avatar,
   Planned,
   EmptyState,
   EVALUATION_CRITERIA,
@@ -54,7 +57,7 @@ export default async function DeveloperDashboard({
     <div>
       <PageHeading
         title="Overview"
-        subtitle={`Signed in as ${user.name}. You can see and provision every account on the platform.`}
+        subtitle="Manage partner organizations, their professionals, and evaluations."
         action={
           <CreateUserForm
             mode="developer"
@@ -63,34 +66,36 @@ export default async function DeveloperDashboard({
         }
       />
 
-      <div className="mb-10">
-        <Figures
-          items={[
-            { label: "Managers", value: managers.length, hint: "Partner contacts" },
-            {
-              label: "Professionals",
-              value: professionals.length,
-              hint: "Under evaluation",
-            },
-            {
-              label: "Evaluations",
-              value: "—",
-              hint: "Workflow not built yet",
-            },
-          ]}
+      <div className="mb-10 grid gap-4 sm:grid-cols-3">
+        <StatCard
+          icon={<Building2 className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          label="Managers"
+          value={managers.length}
+          hint="Partner contacts"
+        />
+        <StatCard
+          icon={<Users className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          label="Professionals"
+          value={professionals.length}
+          hint="Under evaluation"
+        />
+        <StatCard
+          icon={<ClipboardCheck className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          label="Evaluations"
+          value={0}
+          hint="None in progress yet"
         />
       </div>
 
-      {/* Managers register */}
-      <section className="mb-10">
-        <h2 className="mb-3 font-display text-xl font-medium text-ink">Managers</h2>
+      <section className="mb-8">
         <Card className="overflow-hidden">
+          <CardHeader title="Managers" hint="Partner organization contacts" />
           {managers.length === 0 ? (
-            <EmptyState>No managers yet — use “Add account” to create one.</EmptyState>
+            <EmptyState>No managers yet. Use “Add account” to create one.</EmptyState>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-sand-200">
+                <tr className="border-b border-sand-200/70">
                   <th className={thClass}>Name</th>
                   <th className={thClass}>Email</th>
                   <th className={thClass}>Professionals</th>
@@ -99,8 +104,13 @@ export default async function DeveloperDashboard({
               </thead>
               <tbody className="divide-y divide-sand-100">
                 {managers.map((m) => (
-                  <tr key={m.id}>
-                    <td className={`${tdClass} font-medium text-ink`}>{m.name}</td>
+                  <tr key={m.id} className="transition hover:bg-sand-50/70">
+                    <td className={tdClass}>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={m.name} tone="clay" />
+                        <span className="font-medium text-ink">{m.name}</span>
+                      </div>
+                    </td>
                     <td className={`${tdClass} text-ink-soft`}>{m.email}</td>
                     <td className={`${tdClass} text-ink-soft`}>
                       {m._count.professionals}
@@ -116,18 +126,15 @@ export default async function DeveloperDashboard({
         </Card>
       </section>
 
-      {/* Professionals register */}
       <section className="mb-10">
-        <h2 className="mb-3 font-display text-xl font-medium text-ink">
-          Professionals
-        </h2>
         <Card className="overflow-hidden">
+          <CardHeader title="Professionals" hint="Interpreters under evaluation" />
           {professionals.length === 0 ? (
             <EmptyState>No professionals yet.</EmptyState>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-sand-200">
+                <tr className="border-b border-sand-200/70">
                   <th className={thClass}>Name</th>
                   <th className={thClass}>Email</th>
                   <th className={thClass}>Manager</th>
@@ -136,8 +143,13 @@ export default async function DeveloperDashboard({
               </thead>
               <tbody className="divide-y divide-sand-100">
                 {professionals.map((p) => (
-                  <tr key={p.id}>
-                    <td className={`${tdClass} font-medium text-ink`}>{p.name}</td>
+                  <tr key={p.id} className="transition hover:bg-sand-50/70">
+                    <td className={tdClass}>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={p.name} />
+                        <span className="font-medium text-ink">{p.name}</span>
+                      </div>
+                    </td>
                     <td className={`${tdClass} text-ink-soft`}>{p.email}</td>
                     <td className={`${tdClass} text-ink-soft`}>
                       {p.manager?.name ?? (
@@ -155,13 +167,18 @@ export default async function DeveloperDashboard({
         </Card>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Planned
-          title="Phase 0 — alignment with managers"
-          description="Sit down with each manager to capture what they expect from the professionals they hire, then map those expectations to how we evaluate."
+          icon={<Workflow className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          title="Phase 0 alignment"
+          description="Capture each manager's expectations for their professionals, then map those expectations to the evaluation areas."
         />
-        <Planned title="Evaluation pipeline" description="Score professionals across each area and track status from intake through final review.">
-          <ul className="mt-4 space-y-1.5">
+        <Planned
+          icon={<ClipboardCheck className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          title="Evaluation pipeline"
+          description="Score professionals across each area and track status from intake to final review."
+        >
+          <ul className="mt-4 grid gap-1.5">
             {EVALUATION_CRITERIA.map((c) => (
               <li
                 key={c.key}

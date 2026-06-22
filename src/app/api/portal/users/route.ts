@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// GET — list accounts visible to the caller.
+// GET: list accounts visible to the caller.
 //   DEVELOPER     → everyone
 //   MANAGER       → only their own professionals
 //   PROFESSIONAL  → nothing (they have no roster)
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ users: [] });
 }
 
-// POST — create an account.
+// POST: create an account.
 //   DEVELOPER → may create MANAGER or PROFESSIONAL (optionally assigning a
 //               professional to a manager).
 //   MANAGER   → may create PROFESSIONAL, always under themselves.

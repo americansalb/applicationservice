@@ -56,8 +56,9 @@ export default function PortalChrome({
     }
   }
 
-  const sidebar = (
-    <div className="flex h-full flex-col bg-teal-950 text-teal-50">
+  // Shared sidebar contents (used by the desktop rail and the mobile drawer).
+  const railContent = (
+    <>
       <div className="flex h-16 shrink-0 items-center px-5">
         <Link href="/portal" aria-label="Overview">
           <LogoImage className="h-8" />
@@ -127,11 +128,11 @@ export default function PortalChrome({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 
   return (
-    <div className="min-h-screen bg-sand-50">
+    <div className="min-h-screen bg-sand-50 lg:flex">
       {/* Mobile bar */}
       <div className="flex h-14 items-center justify-between bg-teal-950 px-4 lg:hidden">
         <LogoImage className="h-7" />
@@ -144,9 +145,12 @@ export default function PortalChrome({
         </button>
       </div>
 
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">
-        {sidebar}
+      {/* Desktop rail: the teal column stretches to the full page height, while
+          the inner panel sticks so the nav stays in view as the page scrolls. */}
+      <aside className="hidden w-64 shrink-0 bg-teal-950 lg:block">
+        <div className="sticky top-0 flex h-screen flex-col text-teal-50">
+          {railContent}
+        </div>
       </aside>
 
       {/* Mobile drawer */}
@@ -156,7 +160,7 @@ export default function PortalChrome({
             className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-64">
+          <div className="absolute inset-y-0 left-0 flex w-64 flex-col bg-teal-950 text-teal-50">
             <button
               onClick={() => setOpen(false)}
               aria-label="Close menu"
@@ -164,12 +168,13 @@ export default function PortalChrome({
             >
               <X className="h-5 w-5" />
             </button>
-            {sidebar}
+            {railContent}
           </div>
         </div>
       )}
 
-      <div className="lg:pl-64">
+      {/* Content */}
+      <div className="min-w-0 flex-1">
         <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
           {children}
         </main>

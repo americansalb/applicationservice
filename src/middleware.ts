@@ -17,6 +17,7 @@ function isPlatformOrInfra(pathname: string): boolean {
     pathname.startsWith("/api/portal") ||
     pathname === "/api/healthz" ||
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/brand/") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
     pathname.startsWith("/.well-known")

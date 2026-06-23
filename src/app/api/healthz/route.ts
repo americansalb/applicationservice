@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { getPool } from "@/lib/pg";
 import { Client } from "pg";
 import dns from "node:dns/promises";
+import { DEV_BOOTSTRAP_EMAIL, devReclaimOpen } from "@/lib/appBootstrap";
 
 export const dynamic = "force-dynamic";
 
 const RENDER_REGIONS = ["oregon", "ohio", "virginia", "frankfurt", "singapore"];
 
 export async function GET(req: Request) {
-  const out: Record<string, unknown> = { marker: "healthz-dns-diag-2" };
+  const out: Record<string, unknown> = { marker: "healthz-diag-3" };
   const url = process.env.DATABASE_URL || "";
   const wantExternal =
     new URL(req.url).searchParams.get("probe") === "external";
@@ -124,6 +125,21 @@ export async function GET(req: Request) {
     out.adminUserCount = {
       error: err.code || err.message || String(e),
     };
+  }
+
+  // Exact state of the bootstrap developer row — tells us why /portal/claim
+  // is or isn't claimable (exists? role? mustChangePassword?).
+  out.devReclaimOpen = devReclaimOpen();
+  try {
+    const r = await getPool().query(
+      `SELECT role, "mustChangePassword" AS "mustChangePassword", status
+         FROM app_user WHERE email = $1`,
+      [DEV_BOOTSTRAP_EMAIL]
+    );
+    out.devAccount = r.rows[0] ? { exists: true, ...r.rows[0] } : { exists: false };
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    out.devAccount = { error: err.code || err.message || String(e) };
   }
 
   return NextResponse.json(out, { status: out.dbProbe && (out.dbProbe as { ok: boolean }).ok ? 200 : 503 });

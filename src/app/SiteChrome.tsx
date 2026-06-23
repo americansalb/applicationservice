@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const LOGO_SRC =
-  "https://cdn.prod.website-files.com/60bd8dbf37c04966c2f674b4/60ee7042fdbd2e10d46ea03c_Logo2-WhitewithText%26caption-cropped-p-800.png";
+// Clean, local AALB white logo (no external CDN, no cropped-caption variant).
+const LOGO_SRC = "/brand/aalb-logo-white.png";
 
 // Brand logo with a graceful text fallback if the remote asset fails to load,
 // so the header/footer never render a broken image.

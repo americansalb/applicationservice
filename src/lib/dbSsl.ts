@@ -10,3 +10,25 @@ export function sslConfigForUrl(connectionString: string): false | { rejectUnaut
     return false;
   }
 }
+
+// Render's bare internal hostnames ("dpg-xxxx-a", no dot) only resolve on the
+// private network. When a service isn't on that network, the name fails DNS
+// entirely (getaddrinfo ENOTFOUND) — which is exactly what happens to this
+// service. Rewrite such hosts to the database's PUBLIC hostname
+// (<host>.<region>-postgres.render.com, TLS), which resolves and connects from
+// anywhere. The region defaults to the DB's home region (ohio, verified
+// reachable); override with RENDER_DB_REGION if the database ever moves.
+export function externalizeRenderHost(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    if (/^dpg-[a-z0-9-]+$/i.test(url.hostname)) {
+      const region = process.env.RENDER_DB_REGION || "ohio";
+      url.hostname = `${url.hostname}.${region}-postgres.render.com`;
+      if (!url.searchParams.has("sslmode")) url.searchParams.set("sslmode", "require");
+      return url.toString();
+    }
+  } catch {
+    /* fall through and return the original string unchanged */
+  }
+  return connectionString;
+}

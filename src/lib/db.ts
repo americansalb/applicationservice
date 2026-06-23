@@ -1,17 +1,18 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
-import { sslConfigForUrl } from "./dbSsl";
+import { sslConfigForUrl, externalizeRenderHost } from "./dbSsl";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
+  const connectionString = externalizeRenderHost(raw);
   const ssl = sslConfigForUrl(connectionString);
   const pool = new pg.Pool({
     connectionString,

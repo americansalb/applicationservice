@@ -10,7 +10,11 @@ import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
 } from "@/lib/appAuth";
-import { DEV_BOOTSTRAP_EMAIL, DEV_BOOTSTRAP_PASSWORD } from "@/lib/appBootstrap";
+import {
+  DEV_BOOTSTRAP_EMAIL,
+  DEV_BOOTSTRAP_PASSWORD,
+  devReclaimOpen,
+} from "@/lib/appBootstrap";
 
 export const dynamic = "force-dynamic";
 
@@ -52,8 +56,13 @@ export async function POST(req: NextRequest) {
       prisma.appUser.findUnique({ where: { email: DEV_BOOTSTRAP_EMAIL } })
     );
 
-    // Self-destruct: already claimed (or missing / wrong role) => refuse.
-    if (!user || user.role !== "DEVELOPER" || !user.mustChangePassword) {
+    // Self-destruct: refuse if missing / wrong role, or already claimed —
+    // unless the temporary recovery window is open (see appBootstrap).
+    if (
+      !user ||
+      user.role !== "DEVELOPER" ||
+      (!user.mustChangePassword && !devReclaimOpen())
+    ) {
       return NextResponse.json(
         { error: "This setup has already been completed." },
         { status: 410 }

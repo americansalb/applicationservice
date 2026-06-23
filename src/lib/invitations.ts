@@ -24,34 +24,131 @@ export function isEmailConfigured(): boolean {
   );
 }
 
-export function inviteEmailHtml(opts: {
+// Brand palette (kept in sync with the portal UI).
+const TEAL_950 = "#04302e";
+const TEAL_BTN = "#0f4c47";
+const TEAL_200 = "#9fd9d0";
+const INK = "#20251f";
+const INK_SOFT = "#41483f";
+const INK_MUTED = "#6b7280";
+const INK_FAINT = "#9a9588";
+const SAND = "#f1ede4";
+const HAIRLINE = "#ece4d6";
+
+const FONT_SANS =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const FONT_SERIF = "Georgia,'Times New Roman',Times,serif";
+
+type InviteEmailOpts = {
   orgName: string;
   roleLabel: string;
   url: string;
   inviterName?: string;
-}): string {
+};
+
+// A beautiful, email-client-safe invitation email: table-based layout, inline
+// styles only, web-safe fonts, ~600px wide. The header is a typographic
+// wordmark (no hosted image) so it always renders — email clients block
+// remote images by default, which would otherwise show a broken logo.
+export function inviteEmailHtml(opts: InviteEmailOpts): string {
   const { orgName, roleLabel, url, inviterName } = opts;
+  const org = escapeHtml(orgName);
+  const role = escapeHtml(roleLabel);
+  const safeUrl = escapeAttr(url);
   const intro = inviterName
     ? `${escapeHtml(inviterName)} has invited you`
-    : "You have been invited";
-  return `
-  <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#241F1A">
-    <div style="background:#042f2e;color:#fff;padding:24px 28px;border-radius:12px 12px 0 0">
-      <div style="font-size:20px;font-weight:700;letter-spacing:-0.01em">AALB</div>
-      <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#5eead4">Evaluation Platform</div>
-    </div>
-    <div style="border:1px solid #EAE0D0;border-top:none;border-radius:0 0 12px 12px;padding:28px">
-      <p style="font-size:16px;margin:0 0 12px">${intro} to join <strong>${escapeHtml(
-        orgName
-      )}</strong> as a <strong>${escapeHtml(roleLabel)}</strong>.</p>
-      <p style="font-size:14px;line-height:1.6;color:#5A5147;margin:0 0 24px">
-        Click below to set your password and access your account. This link is
-        single-use and expires in ${INVITE_TTL_DAYS} days.
-      </p>
-      <a href="${url}" style="display:inline-block;background:#134e4a;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:8px">Accept invitation</a>
-      <p style="font-size:12px;color:#8C8273;margin:24px 0 0;word-break:break-all">Or paste this link: ${url}</p>
-    </div>
-  </div>`;
+    : "You've been invited";
+  const year = new Date().getFullYear();
+
+  const header = `<div style="font-family:${FONT_SERIF};font-size:30px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;line-height:1;">AALB</div>
+              <div style="font-family:${FONT_SANS};font-size:11px;font-weight:600;letter-spacing:0.24em;text-transform:uppercase;color:${TEAL_200};margin-top:9px;">Evaluation Platform</div>`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<meta name="color-scheme" content="light only" />
+<title>Your AALB Evaluation Platform invitation</title>
+</head>
+<body style="margin:0;padding:0;background:${SAND};-webkit-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${intro} to join ${org} as a ${role} on the AALB Evaluation Platform.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${SAND};">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+          <!-- Header -->
+          <tr>
+            <td style="background:${TEAL_950};border-radius:16px 16px 0 0;padding:36px 40px;text-align:center;">
+              ${header}
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="background:#ffffff;padding:40px 40px 32px;">
+              <h1 style="margin:0 0 18px;font-family:${FONT_SERIF};font-size:25px;line-height:1.25;color:${INK};font-weight:600;">You're invited</h1>
+              <p style="margin:0 0 10px;font-family:${FONT_SANS};font-size:16px;line-height:1.65;color:${INK_SOFT};">
+                ${intro} to join <strong style="color:${INK};">${org}</strong> on the AALB Evaluation Platform as a <strong style="color:${INK};">${role}</strong>.
+              </p>
+              <p style="margin:0 0 30px;font-family:${FONT_SANS};font-size:15px;line-height:1.65;color:${INK_MUTED};">
+                Set your password to activate your account and get started.
+              </p>
+              <!-- Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="${TEAL_BTN}" style="border-radius:10px;">
+                    <a href="${safeUrl}" target="_blank" style="display:inline-block;padding:15px 30px;font-family:${FONT_SANS};font-size:16px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:10px;">Accept invitation &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:30px 0 0;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_FAINT};">
+                This invitation is single-use and expires in ${INVITE_TTL_DAYS} days. If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin:8px 0 0;font-family:${FONT_SANS};font-size:13px;line-height:1.6;word-break:break-all;">
+                <a href="${safeUrl}" target="_blank" style="color:${TEAL_BTN};text-decoration:underline;">${escapeHtml(url)}</a>
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background:#ffffff;border-radius:0 0 16px 16px;border-top:1px solid ${HAIRLINE};padding:24px 40px 28px;">
+              <p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_FAINT};">
+                You're receiving this because someone invited you to the AALB Evaluation Platform. If you weren't expecting it, you can safely ignore this email.
+              </p>
+              <p style="margin:12px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:#b8b3a6;">
+                &copy; ${year} Americans Against Language Barriers
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// Plain-text alternative — improves deliverability and renders in clients that
+// don't show HTML.
+export function inviteEmailText(opts: InviteEmailOpts): string {
+  const { orgName, roleLabel, url, inviterName } = opts;
+  const intro = inviterName
+    ? `${inviterName} has invited you`
+    : "You've been invited";
+  return [
+    "AALB Evaluation Platform",
+    "",
+    `${intro} to join ${orgName} as a ${roleLabel}.`,
+    "",
+    "Set your password to activate your account:",
+    url,
+    "",
+    `This invitation is single-use and expires in ${INVITE_TTL_DAYS} days.`,
+    "If you weren't expecting this, you can ignore this email.",
+    "",
+    `© ${new Date().getFullYear()} Americans Against Language Barriers`,
+  ].join("\n");
 }
 
 function escapeHtml(s: string): string {
@@ -60,4 +157,9 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// For values placed inside HTML attributes (href/src).
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/'/g, "&#39;");
 }

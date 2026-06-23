@@ -9,6 +9,15 @@ export function clientIp(req: NextRequest): string {
   );
 }
 
+// Absolute base URL of the current request (proxy-aware), e.g. for building
+// invitation links that point back at whatever host the portal is served on.
+export function baseUrl(req: NextRequest): string {
+  const proto =
+    req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const host = req.headers.get("host") || "";
+  return `${proto}://${host}`;
+}
+
 // CSRF defense-in-depth on top of the SameSite=Lax session cookie: reject a
 // state-changing request whose Origin is a different site. Requests without an
 // Origin header (server-to-server, curl, some same-origin navigations) are

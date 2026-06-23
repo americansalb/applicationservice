@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRight, Mail, Users } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
@@ -44,7 +45,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
     return Promise.all([
       prisma.organization.findUnique({
         where: { id: orgId },
-        select: { name: true, standardsAlignedAt: true },
+        select: { name: true, standardsAlignedAt: true, phase0Status: true },
       }),
       prisma.appUser.findMany({
         where: { organizationId: orgId, role: "PROFESSIONAL" },
@@ -78,6 +79,11 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
   const [org, team, invites] = data;
   const orgName = org?.name ?? "your organization";
   const aligned = org?.standardsAlignedAt ?? null;
+  // standardsAlignedAt is the authoritative finalize/unlock signal. Until it is
+  // set, phase0Status tells us whether the questionnaire is untouched, in
+  // progress, or submitted and waiting on AALB.
+  const submitted = !aligned && org?.phase0Status === "submitted";
+  const started = org?.phase0Status === "in_progress";
   const validThrough = aligned
     ? new Date(new Date(aligned).setFullYear(new Date(aligned).getFullYear() + 2))
     : null;
@@ -96,7 +102,9 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
           <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
             {aligned
               ? `Welcome, ${firstName}. Here's where each interpreter stands on the path to their Verification of Qualification.`
-              : "One foundational step stands between your interpreters and the start of their assessments."}
+              : submitted
+                ? "Your standards are with AALB for review. We will let you know the moment your interpreters can begin."
+                : "One foundational step stands between your interpreters and the start of their assessments."}
           </p>
         </div>
         <InviteForm mode="manager" />
@@ -142,7 +150,30 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
         </>
       ) : (
         <>
-          {/* Phase 0 — pending hero */}
+          {submitted ? (
+            <section className="mb-7 overflow-hidden rounded-3xl border border-teal-700/20 bg-white shadow-card">
+              <div className="flex flex-col items-start gap-4 p-7 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+                    Phase 0 · Institutional foundation
+                  </span>
+                  <h2 className="mt-2 font-display text-2xl font-semibold leading-snug text-ink">
+                    Standards submitted, under review
+                  </h2>
+                  <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-soft">
+                    Thank you. AALB is turning {orgName}&rsquo;s answers into the
+                    standards profile your interpreters will be assessed against.
+                    This usually takes a couple of business days.
+                  </p>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
+                  <span className="h-1.5 w-1.5 rounded-full bg-teal-600" />
+                  With AALB
+                </span>
+              </div>
+            </section>
+          ) : (
+          /* Phase 0 pending hero */
           <section className="mb-7 overflow-hidden rounded-3xl border border-teal-700/25 bg-white shadow-raised">
             <div className="grid md:grid-cols-[1.5fr_1fr]">
               <div className="p-7">
@@ -159,7 +190,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
                 </h2>
                 <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
                   Before any interpreter begins, AALB works with your leadership to
-                  define the rubrics every assessment is scored against — aligned to
+                  define the rubrics every assessment is scored against, aligned to
                   your policies and federal language-access requirements.
                 </p>
                 <ul className="mt-4 space-y-2">
@@ -177,14 +208,20 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
                   ))}
                 </ul>
                 <div className="mt-6 flex flex-wrap items-center gap-4">
-                  <a
-                    href="mailto:contact@aalb.org?subject=Standards%20alignment%20for%20our%20institution"
+                  <Link
+                    href="/portal/phase0"
                     className="inline-flex items-center gap-2 rounded-lg bg-teal-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950"
                   >
-                    Begin standards alignment
+                    {started
+                      ? "Continue standards alignment"
+                      : "Begin standards alignment"}
                     <ArrowRight className="h-4 w-4" strokeWidth={2} />
-                  </a>
-                  <span className="text-xs text-ink-faint">AALB guides you through it</span>
+                  </Link>
+                  <span className="text-xs text-ink-faint">
+                    {started
+                      ? "Pick up where you left off"
+                      : "About 10 minutes, saved as you go"}
+                  </span>
                 </div>
               </div>
               <div className="relative hidden overflow-hidden bg-teal-950 md:block">
@@ -221,6 +258,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
               </div>
             </div>
           </section>
+          )}
 
           {/* Team waiting — locked track */}
           <section className="relative mb-8 overflow-hidden rounded-3xl border border-sand-200/80 bg-white shadow-card">
@@ -318,7 +356,7 @@ function PendingInvites({
             <Mail className="h-4 w-4" strokeWidth={1.75} />
           </span>
           <span className="flex-1 text-ink-soft">
-            <span className="font-medium text-ink">{i.email}</span> — invitation
+            <span className="font-medium text-ink">{i.email}</span>, invitation
             sent, awaiting acceptance · expires{" "}
             {new Date(i.expiresAt).toLocaleDateString("en-US", {
               month: "short",

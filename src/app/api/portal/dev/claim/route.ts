@@ -18,8 +18,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Claim the hardcoded developer account once. Self-destructs: only works while
-// the account is still flagged mustChangePassword (i.e. not yet claimed).
+// Set up the hardcoded developer account: create it if missing, or claim/reset
+// it (while unclaimed or within the recovery window). Gated by the setup
+// password; self-destructs once claimed and the recovery window has closed.
 export async function POST(req: NextRequest) {
   try {
     if (!isSameOrigin(req)) {
@@ -56,12 +57,14 @@ export async function POST(req: NextRequest) {
       prisma.appUser.findUnique({ where: { email: DEV_BOOTSTRAP_EMAIL } })
     );
 
-    // Self-destruct: refuse if missing / wrong role, or already claimed —
-    // unless the temporary recovery window is open (see appBootstrap).
+    // If the account exists it must be a DEVELOPER that's either unclaimed or
+    // within the recovery window. If it's missing entirely, bootstrap it here
+    // (the deploy-time seed never ran against this database). Both paths are
+    // gated by the setup password checked above.
     if (
-      !user ||
-      user.role !== "DEVELOPER" ||
-      (!user.mustChangePassword && !devReclaimOpen())
+      user &&
+      (user.role !== "DEVELOPER" ||
+        (!user.mustChangePassword && !devReclaimOpen()))
     ) {
       return NextResponse.json(
         { error: "This setup has already been completed." },
@@ -70,18 +73,36 @@ export async function POST(req: NextRequest) {
     }
 
     const hashed = await bcrypt.hash(newPassword, 12);
-    await withDbRetry("portal.claim.write", () =>
-      prisma.appUser.update({
-        where: { id: user.id },
-        data: { password: hashed, mustChangePassword: false },
-      })
-    );
+    let userId: string;
+    if (user) {
+      await withDbRetry("portal.claim.write", () =>
+        prisma.appUser.update({
+          where: { id: user.id },
+          data: { password: hashed, mustChangePassword: false },
+        })
+      );
+      userId = user.id;
+    } else {
+      const created = await withDbRetry("portal.claim.create", () =>
+        prisma.appUser.create({
+          data: {
+            email: DEV_BOOTSTRAP_EMAIL,
+            name: "Kevin Thakkar",
+            password: hashed,
+            role: "DEVELOPER",
+            mustChangePassword: false,
+          },
+          select: { id: true },
+        })
+      );
+      userId = created.id;
+    }
 
     // Log them straight in as the developer.
     const res = NextResponse.json({ ok: true });
     res.cookies.set({
       name: SESSION_COOKIE,
-      value: signSession({ sub: user.id, role: "DEVELOPER" }),
+      value: signSession({ sub: userId, role: "DEVELOPER" }),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

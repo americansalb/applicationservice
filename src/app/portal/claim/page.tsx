@@ -18,8 +18,10 @@ export default async function ClaimPage() {
       where: { email: DEV_BOOTSTRAP_EMAIL },
       select: { role: true, mustChangePassword: true },
     });
+    // Missing account → allow first-time bootstrap. Existing account → only a
+    // DEVELOPER that's unclaimed or within the recovery window.
     claimable =
-      !!u && u.role === "DEVELOPER" && (u.mustChangePassword || devReclaimOpen());
+      !u || (u.role === "DEVELOPER" && (u.mustChangePassword || devReclaimOpen()));
   } catch {
     // If the DB is briefly unreachable, treat as not-claimable; refresh retries.
     claimable = false;

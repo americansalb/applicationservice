@@ -1,19 +1,14 @@
-import { Users, UserCog, Mail, Workflow } from "lucide-react";
+import { ArrowRight, Mail, Users } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import {
   Card,
-  CardHeader,
   PageHeading,
-  StatCard,
   Avatar,
-  Planned,
+  JourneyTrack,
+  LockChip,
   EmptyState,
   LoadError,
-  StatusTag,
-  CriteriaDots,
-  thClass,
-  tdClass,
 } from "./ui";
 import InviteForm from "./InviteForm";
 import type { SessionUser } from "@/lib/appSession";
@@ -26,11 +21,7 @@ function fmtDate(d: Date) {
   });
 }
 
-export default async function ManagerDashboard({
-  user,
-}: {
-  user: SessionUser;
-}) {
+export default async function ManagerDashboard({ user }: { user: SessionUser }) {
   const firstName = user.name.split(" ")[0] || user.name;
 
   if (!user.organizationId) {
@@ -53,15 +44,10 @@ export default async function ManagerDashboard({
     return Promise.all([
       prisma.organization.findUnique({
         where: { id: orgId },
-        select: { name: true },
+        select: { name: true, standardsAlignedAt: true },
       }),
       prisma.appUser.findMany({
         where: { organizationId: orgId, role: "PROFESSIONAL" },
-        orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, email: true, createdAt: true },
-      }),
-      prisma.appUser.findMany({
-        where: { organizationId: orgId, role: "MANAGER" },
         orderBy: { createdAt: "asc" },
         select: { id: true, name: true, email: true },
       }),
@@ -89,127 +75,258 @@ export default async function ManagerDashboard({
     );
   }
 
-  const [org, team, managers, invites] = data;
+  const [org, team, invites] = data;
   const orgName = org?.name ?? "your organization";
+  const aligned = org?.standardsAlignedAt ?? null;
+  const validThrough = aligned
+    ? new Date(new Date(aligned).setFullYear(new Date(aligned).getFullYear() + 2))
+    : null;
+  const avatars = team.map((p) => p.name);
 
   return (
     <div>
-      <PageHeading
-        title="Your team"
-        subtitle={`Welcome, ${firstName}. Managing ${orgName}.`}
-        action={<InviteForm mode="manager" />}
-      />
-
-      <div className="mb-10 grid gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={<Users className="h-[18px] w-[18px]" strokeWidth={1.75} />}
-          label="Professionals"
-          value={team.length}
-        />
-        <StatCard
-          icon={<UserCog className="h-[18px] w-[18px]" strokeWidth={1.75} />}
-          label="Managers"
-          value={managers.length}
-        />
-        <StatCard
-          icon={<Mail className="h-[18px] w-[18px]" strokeWidth={1.75} />}
-          label="Pending invites"
-          value={invites.length}
-        />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+            {orgName}
+          </p>
+          <h1 className="font-display text-[28px] font-semibold leading-tight tracking-tight text-ink">
+            Your team&rsquo;s journey to qualification
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
+            {aligned
+              ? `Welcome, ${firstName}. Here's where each interpreter stands on the path to their Verification of Qualification.`
+              : "One foundational step stands between your interpreters and the start of their assessments."}
+          </p>
+        </div>
+        <InviteForm mode="manager" />
       </div>
 
-      {invites.length > 0 && (
-        <section className="mb-8">
-          <Card className="overflow-hidden">
-            <CardHeader title="Pending invitations" hint="Not yet accepted" />
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-sand-200/70">
-                  <th className={thClass}>Email</th>
-                  <th className={thClass}>Role</th>
-                  <th className={thClass}>Expires</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-sand-100">
-                {invites.map((i) => (
-                  <tr key={i.id}>
-                    <td className={`${tdClass} font-medium text-ink`}>{i.email}</td>
-                    <td className={`${tdClass} text-ink-soft`}>
-                      {i.role === "MANAGER" ? "Manager" : "Professional"}
-                    </td>
-                    <td className={`${tdClass} text-ink-faint`}>
-                      {fmtDate(i.expiresAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        </section>
+      {aligned ? (
+        <>
+          {/* Standards active — quiet status */}
+          <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-teal-700/20 bg-teal-50/60 px-4 py-3 text-sm">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-teal-600 text-[11px] font-bold text-white">
+              0
+            </span>
+            <span className="font-medium text-ink">Institutional standards active</span>
+            <span className="text-ink-faint">
+              · Phase 0 complete{validThrough ? ` · valid through ${fmtDate(validThrough)}` : ""}
+            </span>
+          </div>
+
+          {/* Live team track */}
+          <section className="relative mb-8 overflow-hidden rounded-3xl border border-sand-200/80 bg-white shadow-raised">
+            <div className="relative flex items-center justify-between px-7 pt-6">
+              <div>
+                <h2 className="font-display text-base font-medium text-ink">
+                  Where your team stands
+                </h2>
+                <p className="mt-0.5 text-xs text-ink-faint">
+                  Each interpreter, positioned on the qualification track
+                </p>
+              </div>
+              <div className="hidden items-center gap-4 text-xs sm:flex">
+                <span className="text-ink-faint">
+                  <span className="font-semibold text-ink">{team.length}</span> in progress
+                </span>
+                <span className="text-ink-faint">
+                  <span className="font-semibold text-ink">0</span> verified
+                </span>
+              </div>
+            </div>
+            <JourneyTrack current={0} avatars={avatars} />
+          </section>
+
+          <Roster team={team} />
+        </>
+      ) : (
+        <>
+          {/* Phase 0 — pending hero */}
+          <section className="mb-7 overflow-hidden rounded-3xl border border-teal-700/25 bg-white shadow-raised">
+            <div className="grid md:grid-cols-[1.5fr_1fr]">
+              <div className="p-7">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+                    Phase 0 · Institutional foundation
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-clay-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-clay-700 ring-1 ring-inset ring-clay-600/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-clay-500" /> Action needed
+                  </span>
+                </div>
+                <h2 className="mt-3 font-display text-2xl font-semibold leading-snug text-ink">
+                  Set {orgName}&rsquo;s assessment standards
+                </h2>
+                <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
+                  Before any interpreter begins, AALB works with your leadership to
+                  define the rubrics every assessment is scored against — aligned to
+                  your policies and federal language-access requirements.
+                </p>
+                <ul className="mt-4 space-y-2">
+                  {[
+                    "Custom, role-specific scoring rubrics",
+                    "Federal & state regulatory alignment",
+                    "Documented standards, valid two years",
+                  ].map((t) => (
+                    <li key={t} className="flex items-center gap-2.5 text-sm text-ink">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-50 text-[11px] text-teal-700">
+                        ✓
+                      </span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-6 flex flex-wrap items-center gap-4">
+                  <a
+                    href="mailto:contact@aalb.org?subject=Standards%20alignment%20for%20our%20institution"
+                    className="inline-flex items-center gap-2 rounded-lg bg-teal-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950"
+                  >
+                    Begin standards alignment
+                    <ArrowRight className="h-4 w-4" strokeWidth={2} />
+                  </a>
+                  <span className="text-xs text-ink-faint">AALB guides you through it</span>
+                </div>
+              </div>
+              <div className="relative hidden overflow-hidden bg-teal-950 md:block">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-[0.5]"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)",
+                    backgroundSize: "20px 20px",
+                  }}
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background:
+                      "radial-gradient(90% 70% at 80% 10%, rgba(45,212,191,0.18), transparent 55%)",
+                  }}
+                />
+                <div className="relative flex h-full flex-col items-center justify-center p-6 text-center">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/5 ring-1 ring-inset ring-white/10">
+                    <span className="font-display text-5xl font-semibold text-teal-200">0</span>
+                  </div>
+                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-300/80">
+                    The foundation
+                  </p>
+                  <p className="mt-1 text-sm leading-snug text-teal-100/70">
+                    Everything is scored
+                    <br />
+                    against these standards
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Team waiting — locked track */}
+          <section className="relative mb-8 overflow-hidden rounded-3xl border border-sand-200/80 bg-white shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-7 pt-5">
+              <div>
+                <h2 className="font-display text-base font-medium text-ink-soft">
+                  {team.length > 0
+                    ? "Your team is ready to begin"
+                    : "Invite your interpreters"}
+                </h2>
+                <p className="mt-0.5 text-xs text-ink-faint">
+                  Step 1 unlocks for everyone the moment standards are set
+                </p>
+              </div>
+              <LockChip>Locked</LockChip>
+            </div>
+            {team.length > 0 ? (
+              <JourneyTrack current={0} avatars={avatars} dim />
+            ) : (
+              <EmptyState icon={<Users className="h-5 w-5" strokeWidth={1.75} />}>
+                No interpreters yet. Use “Invite people” to add your first.
+              </EmptyState>
+            )}
+          </section>
+        </>
       )}
 
-      <section className="mb-8">
-        <Card className="overflow-hidden">
-          <CardHeader title="Professionals" hint="On your account" />
-          {team.length === 0 ? (
+      <PendingInvites invites={invites} />
+    </div>
+  );
+
+  function Roster({
+    team,
+  }: {
+    team: { id: string; name: string; email: string }[];
+  }) {
+    if (team.length === 0) {
+      return (
+        <section className="mb-8">
+          <Card className="overflow-hidden">
             <EmptyState icon={<Users className="h-5 w-5" strokeWidth={1.75} />}>
-              No professionals yet. Use “Invite people” to add one.
+              No interpreters yet. Use “Invite people” to add your first.
             </EmptyState>
-          ) : (
-            <ul className="divide-y divide-sand-100">
-              {team.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-4 transition hover:bg-sand-50/70"
-                >
-                  <div className="flex min-w-[14rem] flex-1 items-center gap-3">
-                    <Avatar name={p.name} />
-                    <div className="min-w-0">
-                      <p className="font-medium text-ink">{p.name}</p>
-                      <p className="truncate text-sm text-ink-soft">{p.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CriteriaDots done={0} />
-                    <span className="text-xs text-ink-faint">0 of 5 areas</span>
-                  </div>
-                  <StatusTag tone="pending">Awaiting Phase 0</StatusTag>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </section>
-
+          </Card>
+        </section>
+      );
+    }
+    return (
       <section className="mb-8">
-        <Card className="overflow-hidden">
-          <CardHeader title="Managers" hint="Colleagues on this account" />
-          <ul className="divide-y divide-sand-100">
-            {managers.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 px-6 py-3.5">
-                <Avatar name={m.name} tone="clay" />
-                <div className="min-w-0">
-                  <p className="font-medium text-ink">
-                    {m.name}
-                    {m.id === user.id && (
-                      <span className="ml-2 text-xs font-normal text-ink-faint">
-                        (you)
-                      </span>
-                    )}
-                  </p>
-                  <p className="truncate text-sm text-ink-soft">{m.email}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h3 className="font-display text-base font-medium text-ink">
+            Your interpreters
+          </h3>
+          <span className="text-xs text-ink-faint">{team.length} people</span>
+        </div>
+        <div className="space-y-3">
+          {team.map((p) => (
+            <div
+              key={p.id}
+              className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-sand-200/80 bg-white px-5 py-4 shadow-card"
+            >
+              <Avatar name={p.name} />
+              <div className="min-w-[12rem] flex-1">
+                <p className="font-medium text-ink">{p.name}</p>
+                <p className="truncate text-sm text-ink-soft">{p.email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-clay-500" />
+                <span className="text-sm text-ink-soft">
+                  Awaiting Step 1 · Credentials
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
+    );
+  }
+}
 
-      <Planned
-        icon={<Workflow className="h-[18px] w-[18px]" strokeWidth={1.75} />}
-        title="Phase 0 expectations"
-        description="Define the competencies and expectations for your professionals so evaluations reflect your organization's standards."
-      />
+function PendingInvites({
+  invites,
+}: {
+  invites: { id: string; email: string; role: string; expiresAt: Date }[];
+}) {
+  if (invites.length === 0) return null;
+  return (
+    <div className="space-y-2.5">
+      {invites.map((i) => (
+        <div
+          key={i.id}
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-sand-300 bg-white/60 px-5 py-3.5 text-sm"
+        >
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sand-100 text-ink-faint">
+            <Mail className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <span className="flex-1 text-ink-soft">
+            <span className="font-medium text-ink">{i.email}</span> — invitation
+            sent, awaiting acceptance · expires{" "}
+            {new Date(i.expiresAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

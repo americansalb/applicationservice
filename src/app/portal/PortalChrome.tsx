@@ -5,9 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   LayoutGrid,
-  ClipboardCheck,
+  Building2,
+  Users,
   Workflow,
   BarChart3,
+  FileText,
+  CalendarClock,
   LogOut,
   Menu,
   X,
@@ -25,14 +28,27 @@ const ROLE_LABELS: Record<AppRole, string> = {
 
 type NavItem = { label: string; href?: string; icon: LucideIcon };
 
-// Only "Overview" routes anywhere today; the rest are placeholders for the
-// evaluation workflow still to be built.
-const NAV: NavItem[] = [
-  { label: "Overview", href: "/portal", icon: LayoutGrid },
-  { label: "Evaluations", icon: ClipboardCheck },
-  { label: "Phase 0", icon: Workflow },
-  { label: "Reports", icon: BarChart3 },
-];
+// The landing item routes to /portal (the role's dashboard); the rest are
+// placeholders for workflow still to be built. Labels are role-specific so
+// each person's sidebar speaks their language.
+const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
+  DEVELOPER: [
+    { label: "Overview", href: "/portal", icon: LayoutGrid },
+    { label: "Institutions", icon: Building2 },
+    { label: "Candidates", icon: Users },
+    { label: "Reports", icon: BarChart3 },
+  ],
+  MANAGER: [
+    { label: "Team journey", href: "/portal", icon: LayoutGrid },
+    { label: "Phase 0 · Standards", icon: Workflow },
+    { label: "Reports", icon: BarChart3 },
+  ],
+  PROFESSIONAL: [
+    { label: "My journey", href: "/portal", icon: LayoutGrid },
+    { label: "Documents", icon: FileText },
+    { label: "Schedule", icon: CalendarClock },
+  ],
+};
 
 export default function PortalChrome({
   user,
@@ -55,6 +71,8 @@ export default function PortalChrome({
       router.refresh();
     }
   }
+
+  const NAV = NAV_BY_ROLE[user.role] ?? NAV_BY_ROLE.DEVELOPER;
 
   // Shared sidebar contents (used by the desktop rail and the mobile drawer).
   const railContent = (

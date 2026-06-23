@@ -30,7 +30,13 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
     return Promise.all([
       prisma.organization.findMany({
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, createdAt: true, standardsAlignedAt: true },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          standardsAlignedAt: true,
+          phase0Status: true,
+        },
       }),
       prisma.appUser.findMany({
         where: { role: "PROFESSIONAL" },
@@ -136,6 +142,9 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
                       {fmtDate(o.createdAt)}
                     </p>
                   </div>
+                  {!o.standardsAlignedAt && (
+                    <Phase0Chip status={o.phase0Status} />
+                  )}
                   <StandardsToggle orgId={o.id} aligned={!!o.standardsAlignedAt} />
                 </div>
               );
@@ -176,6 +185,31 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
         </section>
       )}
     </div>
+  );
+}
+
+// Phase 0 progress for an institution that is not yet aligned. "Submitted" is
+// the one AALB needs to act on, so it reads loudest.
+function Phase0Chip({ status }: { status: string }) {
+  if (status === "submitted") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-clay-100 px-2.5 py-1 text-xs font-semibold text-clay-700 ring-1 ring-inset ring-clay-600/20">
+        <span className="h-1.5 w-1.5 rounded-full bg-clay-500" />
+        Ready to review
+      </span>
+    );
+  }
+  if (status === "in_progress") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-sand-100 px-2.5 py-1 text-xs font-medium text-ink-soft ring-1 ring-inset ring-sand-300">
+        Phase 0 in progress
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-sand-100 px-2.5 py-1 text-xs font-medium text-ink-faint ring-1 ring-inset ring-sand-300">
+      Awaiting standards
+    </span>
   );
 }
 

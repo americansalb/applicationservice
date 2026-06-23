@@ -5,6 +5,17 @@ const path = require("path");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
+// Order migration directories by their numeric prefix ("0_init", "1_...",
+// "10_..."). A plain string sort places "10_" before "2_", which would run a
+// later migration before the table it depends on exists. Numeric ordering keeps
+// 0 through 9 exactly as before and makes 10+ apply in the intended sequence.
+function byMigrationOrder(a, b) {
+  const na = parseInt(a, 10);
+  const nb = parseInt(b, 10);
+  if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+  return a.localeCompare(b);
+}
+
 function readMigrationsInOrder(migrationsDir) {
   const entries = readdirSync(migrationsDir)
     .filter((name) => {
@@ -15,7 +26,7 @@ function readMigrationsInOrder(migrationsDir) {
         return false;
       }
     })
-    .sort();
+    .sort(byMigrationOrder);
   return entries
     .map((name) => path.join(migrationsDir, name, "migration.sql"))
     .filter((p) => {

@@ -40,7 +40,7 @@ const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {
   ],
   MANAGER: [
     { label: "Team journey", href: "/portal", icon: LayoutGrid },
-    { label: "Phase 0 · Standards", icon: Workflow },
+    { label: "Phase 0 · Standards", href: "/portal/phase0", icon: Workflow },
     { label: "Reports", icon: BarChart3 },
   ],
   PROFESSIONAL: [

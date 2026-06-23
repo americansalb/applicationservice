@@ -211,8 +211,16 @@ model Organization {
   name        String
   status      String   @default("active") // active | disabled
   // Phase 0 / institutional standards alignment. NULL = pending setup;
-  // a timestamp means standards are active (valid two years from it).
+  // a timestamp means standards are active (valid two years from it). This stays
+  // the finalize/unlock signal that candidate gating reads.
   standardsAlignedAt DateTime?
+  // Phase 0 self-serve questionnaire (see migration 10_org_phase0). The manager
+  // answers on their own time; AALB finalizes via standardsAlignedAt above.
+  // Status: not_started | in_progress | submitted | finalized. Answers is a flat
+  // map keyed by question id; ids are permanent JSONB keys and never renamed.
+  phase0Status      String    @default("not_started")
+  phase0Answers     Json      @default("{}")
+  phase0SubmittedAt DateTime?
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

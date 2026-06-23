@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 const RENDER_REGIONS = ["oregon", "ohio", "virginia", "frankfurt", "singapore"];
 
 export async function GET(req: Request) {
-  const out: Record<string, unknown> = { marker: "healthz-diag-3" };
+  const out: Record<string, unknown> = {
+    marker: "healthz-diag-4",
+    jwtSecretReady: !!(process.env.APP_JWT_SECRET || process.env.JWT_SECRET),
+  };
   const url = process.env.DATABASE_URL || "";
   const wantExternal =
     new URL(req.url).searchParams.get("probe") === "external";

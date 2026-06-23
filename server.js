@@ -215,22 +215,59 @@ async function setupPartners() {
   }
 }
 
-// Start Next.js immediately so Render sees the port binding fast.
-// Database setup runs in the background so a slow/unreachable DB can't
-// prevent the app from starting.
-const child = spawn("npx", ["next", "start", "-p", String(port)], {
-  stdio: "inherit",
-  env: process.env,
-});
-child.on("exit", (code) => process.exit(code));
-
-// Kick off DB setup in the background, don't block port binding
-Promise.allSettled([setupCareers(), setupPartners()]).then((results) => {
-  results.forEach((r, i) => {
-    const name = i === 0 ? "careers" : "partners";
-    if (r.status === "rejected") {
-      console.error(`[${name}] setup rejected:`, r.reason);
+// Ensure a stable session-signing secret exists WITHOUT requiring an env var.
+// Order matters: we set process.env.APP_JWT_SECRET *before* spawning Next so
+// the child process inherits it (appAuth.getSecret reads it). An explicitly
+// configured APP_JWT_SECRET / JWT_SECRET always takes precedence. The secret is
+// persisted in app_platform_config so it stays stable across deploys/restarts.
+async function ensureJwtSecret() {
+  if (process.env.APP_JWT_SECRET || process.env.JWT_SECRET) return;
+  const pool = createPool(process.env.DATABASE_URL);
+  if (!pool) return;
+  try {
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS "app_platform_config" ("key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)`
+    );
+    const generated = crypto.randomBytes(48).toString("hex");
+    await pool.query(
+      `INSERT INTO "app_platform_config" ("key", "value") VALUES ('app_jwt_secret', $1)
+       ON CONFLICT ("key") DO NOTHING`,
+      [generated]
+    );
+    const r = await pool.query(
+      `SELECT "value" FROM "app_platform_config" WHERE "key" = 'app_jwt_secret'`
+    );
+    const secret = r.rows[0] && r.rows[0].value;
+    if (secret) {
+      process.env.APP_JWT_SECRET = secret;
+      console.log("[platform] Session signing secret ready (app_platform_config).");
+    } else {
+      console.error("[platform] ensureJwtSecret: no secret returned");
     }
+  } catch (e) {
+    console.error("[platform] ensureJwtSecret ERROR:", e.message);
+  } finally {
+    await pool.end().catch(() => {});
+  }
+}
+
+// Provision the session-signing secret first (sets process.env), then start
+// Next so the child inherits it. DB table/seed setup still runs in background.
+ensureJwtSecret().finally(() => {
+  const child = spawn("npx", ["next", "start", "-p", String(port)], {
+    stdio: "inherit",
+    env: process.env,
   });
-  console.log("[setup] All DB setup tasks finished.");
+  child.on("exit", (code) => process.exit(code));
+
+  // Kick off DB setup in the background, don't block port binding
+  Promise.allSettled([setupCareers(), setupPartners()]).then((results) => {
+    results.forEach((r, i) => {
+      const name = i === 0 ? "careers" : "partners";
+      if (r.status === "rejected") {
+        console.error(`[${name}] setup rejected:`, r.reason);
+      }
+    });
+    console.log("[setup] All DB setup tasks finished.");
+  });
 });

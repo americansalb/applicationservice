@@ -1,6 +1,45 @@
 import type { ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Award, Lock, Check } from "lucide-react";
 import type { AppRole } from "@/lib/appAuth";
+
+// The candidate's qualification journey — the five sequential steps every
+// medical interpreter completes, per the AALB assessment agreement. Step 0
+// (institutional standards) is a prerequisite handled at the organization
+// level, not a candidate step, so it isn't in this list.
+export const ASSESSMENT_STEPS = [
+  {
+    code: "1",
+    short: "Credentials",
+    name: "Credential verification",
+    desc: "National certification (CCHI, NBCMI, or RID) and a 40-hour medical interpreter training program.",
+  },
+  {
+    code: "2",
+    short: "Proficiency",
+    name: "Language proficiency",
+    desc: "Speaking and listening in each working language, assessed to the ILR 3+ standard.",
+  },
+  {
+    code: "3A",
+    short: "Knowledge",
+    name: "Knowledge examination",
+    desc: "Proctored exam on ethics, role boundaries, HIPAA, and medical terminology. Pass ≥ 80%.",
+  },
+  {
+    code: "3B",
+    short: "Simulated",
+    name: "Simulated skills assessment",
+    desc: "Recorded, high-fidelity medical encounter scenarios scored by expert evaluators.",
+  },
+  {
+    code: "3C",
+    short: "Live",
+    name: "Live skills observation",
+    desc: "Supervised observation in a real clinical setting — on-site or by video.",
+  },
+] as const;
+
+export const TOTAL_STEPS = ASSESSMENT_STEPS.length;
 
 // The areas each professional is evaluated on. Rendered as a standards-style
 // rubric for now; the scoring workflow itself is not built yet.
@@ -301,3 +340,89 @@ export function LoadError({ label = "this section" }: { label?: string }) {
 export const thClass =
   "px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-faint";
 export const tdClass = "px-6 py-4 align-middle";
+
+// The shared qualification track: the five steps as a horizontal path ending
+// in the Verification seal. `current` is the index of the step in progress
+// (0 = Step 1). Optional `avatars` cluster above the current node (the manager
+// sees their team riding the same track); `dim` renders it locked/awaiting.
+export function JourneyTrack({
+  current = 0,
+  avatars = [],
+  dim = false,
+}: {
+  current?: number;
+  avatars?: string[];
+  dim?: boolean;
+}) {
+  return (
+    <div className={`relative px-6 pb-4 pt-12 sm:px-10 ${dim ? "opacity-55" : ""}`}>
+      <div className="absolute left-[44px] right-[64px] top-[78px] h-[3px] rounded-full bg-sand-300 sm:left-[60px] sm:right-[80px]" />
+      <div className="relative flex items-start justify-between">
+        {ASSESSMENT_STEPS.map((s, i) => {
+          const done = i < current;
+          const isCurrent = i === current;
+          return (
+            <div key={s.code} className="relative flex w-14 flex-col items-center sm:w-16">
+              {isCurrent && avatars.length > 0 && (
+                <div className="absolute -top-11 flex items-center">
+                  {avatars.slice(0, 4).map((n, j) => (
+                    <span
+                      key={j}
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-[10px] font-semibold text-white ring-2 ring-white ${j > 0 ? "-ml-2" : ""}`}
+                    >
+                      {initialsOf(n)}
+                    </span>
+                  ))}
+                  {avatars.length > 4 && (
+                    <span className="-ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal-900 text-[10px] font-semibold text-white ring-2 ring-white">
+                      +{avatars.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div
+                className={`z-10 flex h-7 w-7 items-center justify-center rounded-full font-display text-xs font-semibold ring-2 ${
+                  done
+                    ? "bg-teal-600 text-white ring-teal-600"
+                    : isCurrent
+                      ? "bg-teal-600 text-white ring-4 ring-white"
+                      : "bg-white text-ink-faint ring-sand-300"
+                }`}
+              >
+                {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : s.code}
+              </div>
+              <p
+                className={`mt-2 text-[11px] font-semibold uppercase tracking-wide ${
+                  isCurrent ? "text-teal-700" : "text-ink-faint"
+                }`}
+              >
+                Step {s.code}
+              </p>
+              <p className="text-center text-[11px] leading-tight text-ink-faint">
+                {s.short}
+              </p>
+            </div>
+          );
+        })}
+        <div className="relative flex w-14 flex-col items-center sm:w-16">
+          <div className="z-10 -mt-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-teal-700 to-teal-950 text-teal-200 ring-4 ring-white">
+            <Award className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wide text-teal-900">
+            Verified
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A small lock chip used on awaiting/gated sections.
+export function LockChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-sand-100 px-2.5 py-1 text-xs font-medium text-ink-faint ring-1 ring-inset ring-sand-300">
+      <Lock className="h-3 w-3" strokeWidth={2} />
+      {children}
+    </span>
+  );
+}

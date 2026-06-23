@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ROLE_LABELS: Record<string, string> = {
+  DEVELOPER: "Developer",
   MANAGER: "Manager",
   PROFESSIONAL: "Professional",
 };
@@ -121,33 +122,44 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (role !== "MANAGER" && role !== "PROFESSIONAL") {
+    if (role !== "DEVELOPER" && role !== "MANAGER" && role !== "PROFESSIONAL") {
       return NextResponse.json(
-        { error: "Choose a role: Manager or Professional." },
+        { error: "Choose a role: Developer, Manager, or Professional." },
         { status: 400 }
       );
     }
+    // Only developers can create other developer accounts.
+    if (role === "DEVELOPER" && session.role !== "DEVELOPER") {
+      return NextResponse.json(
+        { error: "Only developers can invite developers." },
+        { status: 403 }
+      );
+    }
 
-    // Resolve the target organization.
-    let orgId: string;
-    let orgName: string;
-    if (session.role === "MANAGER") {
+    // Resolve the target organization. Developers (AALB staff) have none.
+    let orgId: string | null = null;
+    let orgName: string | null = null;
+    if (role === "DEVELOPER") {
+      // No organization for developer invites.
+    } else if (session.role === "MANAGER") {
       if (!session.organizationId) {
         return NextResponse.json(
           { error: "Your account is not linked to an organization yet." },
           { status: 400 }
         );
       }
-      orgId = session.organizationId;
+      const managerOrgId = session.organizationId;
       const org = await withDbRetry("portal.invite.org", () =>
         prisma.organization.findUnique({
-          where: { id: orgId },
+          where: { id: managerOrgId },
           select: { name: true },
         })
       );
+      orgId = managerOrgId;
       orgName = org?.name ?? "your organization";
     } else {
-      // DEVELOPER: existing org by id, or create one by name.
+      // DEVELOPER inviting a manager/professional: existing org by id, or
+      // create one by name.
       if (organizationId) {
         const org = await withDbRetry("portal.invite.org", () =>
           prisma.organization.findUnique({
@@ -220,7 +232,7 @@ export async function POST(req: NextRequest) {
     let emailed = false;
     if (isEmailConfigured()) {
       const emailArgs = {
-        orgName,
+        orgName: orgName ?? undefined,
         roleLabel: ROLE_LABELS[role],
         url,
         inviterName: session.name,

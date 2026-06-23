@@ -17,7 +17,7 @@ export default function AcceptForm({
   token: string;
   email: string;
   name: string;
-  orgName: string;
+  orgName?: string;
   roleLabel: string;
 }) {
   const router = useRouter();
@@ -64,8 +64,18 @@ export default function AcceptForm({
         Accept your invitation
       </h1>
       <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
-        Join <span className="font-medium text-ink">{orgName}</span> as a{" "}
-        {roleLabel}. Set a password to finish creating your account.
+        {orgName ? (
+          <>
+            Join <span className="font-medium text-ink">{orgName}</span> as a{" "}
+            {roleLabel}.
+          </>
+        ) : (
+          <>
+            Join the AALB Evaluation Platform as a{" "}
+            <span className="font-medium text-ink">{roleLabel}</span>.
+          </>
+        )}{" "}
+        Set a password to finish creating your account.
       </p>
       <p className="mt-3 rounded-lg bg-sand-50 px-3 py-2 text-sm text-ink-soft ring-1 ring-inset ring-sand-200">
         {email}

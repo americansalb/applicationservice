@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
+  DEVELOPER: "Developer",
   MANAGER: "Manager",
   PROFESSIONAL: "Professional",
 };
@@ -26,7 +27,7 @@ export default async function InvitePage({
     role: string;
     status: string;
     expiresAt: Date;
-    organization: { name: string };
+    organization: { name: string } | null;
   } | null = null;
   try {
     invite = await prisma.invitation.findUnique({
@@ -61,7 +62,7 @@ export default async function InvitePage({
               token={params.token}
               email={invite.email}
               name={invite.name ?? ""}
-              orgName={invite.organization.name}
+              orgName={invite.organization?.name}
               roleLabel={ROLE_LABELS[invite.role] ?? invite.role}
             />
           ) : (

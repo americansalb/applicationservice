@@ -150,7 +150,9 @@ export default async function DeveloperDashboard({
                       <RoleBadge role={i.role as AppRole} />
                     </td>
                     <td className={`${tdClass} text-ink-soft`}>
-                      {i.organization.name}
+                      {i.organization?.name ?? (
+                        <span className="text-ink-faint">—</span>
+                      )}
                     </td>
                     <td className={`${tdClass} text-ink-faint`}>
                       {fmtDate(i.expiresAt)}

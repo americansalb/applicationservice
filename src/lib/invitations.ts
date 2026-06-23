@@ -40,7 +40,8 @@ const FONT_SANS =
 const FONT_SERIF = "Georgia,'Times New Roman',Times,serif";
 
 type InviteEmailOpts = {
-  orgName: string;
+  // Developers (AALB staff) have no organization, so this is optional.
+  orgName?: string;
   roleLabel: string;
   url: string;
   inviterName?: string;
@@ -52,13 +53,19 @@ type InviteEmailOpts = {
 // remote images by default, which would otherwise show a broken logo.
 export function inviteEmailHtml(opts: InviteEmailOpts): string {
   const { orgName, roleLabel, url, inviterName } = opts;
-  const org = escapeHtml(orgName);
+  const org = orgName ? escapeHtml(orgName) : "";
   const role = escapeHtml(roleLabel);
   const safeUrl = escapeAttr(url);
   const intro = inviterName
     ? `${escapeHtml(inviterName)} has invited you`
     : "You've been invited";
   const year = new Date().getFullYear();
+  const inviteLine = orgName
+    ? `${intro} to join <strong style="color:${INK};">${org}</strong> on the AALB Evaluation Platform as a <strong style="color:${INK};">${role}</strong>.`
+    : `${intro} to join the AALB Evaluation Platform as a <strong style="color:${INK};">${role}</strong>.`;
+  const preheader = orgName
+    ? `${intro} to join ${org} as a ${role} on the AALB Evaluation Platform.`
+    : `${intro} to join the AALB Evaluation Platform as a ${role}.`;
 
   const header = `<div style="font-family:${FONT_SERIF};font-size:30px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;line-height:1;">AALB</div>
               <div style="font-family:${FONT_SANS};font-size:11px;font-weight:600;letter-spacing:0.24em;text-transform:uppercase;color:${TEAL_200};margin-top:9px;">Evaluation Platform</div>`;
@@ -73,7 +80,7 @@ export function inviteEmailHtml(opts: InviteEmailOpts): string {
 <title>Your AALB Evaluation Platform invitation</title>
 </head>
 <body style="margin:0;padding:0;background:${SAND};-webkit-text-size-adjust:100%;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${intro} to join ${org} as a ${role} on the AALB Evaluation Platform.</div>
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${SAND};">
     <tr>
       <td align="center" style="padding:40px 16px;">
@@ -89,7 +96,7 @@ export function inviteEmailHtml(opts: InviteEmailOpts): string {
             <td style="background:#ffffff;padding:40px 40px 32px;">
               <h1 style="margin:0 0 18px;font-family:${FONT_SERIF};font-size:25px;line-height:1.25;color:${INK};font-weight:600;">You're invited</h1>
               <p style="margin:0 0 10px;font-family:${FONT_SANS};font-size:16px;line-height:1.65;color:${INK_SOFT};">
-                ${intro} to join <strong style="color:${INK};">${org}</strong> on the AALB Evaluation Platform as a <strong style="color:${INK};">${role}</strong>.
+                ${inviteLine}
               </p>
               <p style="margin:0 0 30px;font-family:${FONT_SANS};font-size:15px;line-height:1.65;color:${INK_MUTED};">
                 Set your password to activate your account and get started.
@@ -136,10 +143,13 @@ export function inviteEmailText(opts: InviteEmailOpts): string {
   const intro = inviterName
     ? `${inviterName} has invited you`
     : "You've been invited";
+  const joinLine = orgName
+    ? `${intro} to join ${orgName} as a ${roleLabel}.`
+    : `${intro} to join the AALB Evaluation Platform as a ${roleLabel}.`;
   return [
     "AALB Evaluation Platform",
     "",
-    `${intro} to join ${orgName} as a ${roleLabel}.`,
+    joinLine,
     "",
     "Set your password to activate your account:",
     url,

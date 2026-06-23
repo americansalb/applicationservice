@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { DEV_BOOTSTRAP_EMAIL } from "@/lib/appBootstrap";
+import { DEV_BOOTSTRAP_EMAIL, devReclaimOpen } from "@/lib/appBootstrap";
 import { LogoImage } from "../Brand";
 import ClaimForm from "./ClaimForm";
 
@@ -18,7 +18,8 @@ export default async function ClaimPage() {
       where: { email: DEV_BOOTSTRAP_EMAIL },
       select: { role: true, mustChangePassword: true },
     });
-    claimable = !!u && u.role === "DEVELOPER" && u.mustChangePassword;
+    claimable =
+      !!u && u.role === "DEVELOPER" && (u.mustChangePassword || devReclaimOpen());
   } catch {
     // If the DB is briefly unreachable, treat as not-claimable; refresh retries.
     claimable = false;

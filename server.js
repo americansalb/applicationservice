@@ -30,23 +30,36 @@ function readMigrationsInOrder(migrationsDir) {
 
 const port = process.env.PORT || 3000;
 
-function createPool(connectionString) {
-  if (!connectionString) return null;
-  // Render's bare internal hostnames ("dpg-xxxx-a") have no dots and don't
-  // accept SSL. External hostnames (with dots) require SSL — and Render's
-  // dashboard "External Database URL" copy field doesn't always include
-  // "?sslmode=require", so detect from the hostname instead.
-  let ssl = false;
+// Render's bare internal hostnames ("dpg-xxxx-a", no dot) only resolve on the
+// private network. This service isn't on it, so the internal name fails DNS
+// entirely (getaddrinfo ENOTFOUND) and the background DB setup below never runs
+// — which is why the platform tables were missing. Rewrite to the database's
+// PUBLIC hostname (over TLS) so boot-time setup can reach it from anywhere.
+function externalizeRenderHost(connectionString) {
   try {
     const u = new URL(connectionString);
+    if (/^dpg-[a-z0-9-]+$/i.test(u.hostname)) {
+      const region = process.env.RENDER_DB_REGION || "ohio";
+      u.hostname = `${u.hostname}.${region}-postgres.render.com`;
+      if (!u.searchParams.has("sslmode")) u.searchParams.set("sslmode", "require");
+      return u.toString();
+    }
+  } catch {}
+  return connectionString;
+}
+
+function createPool(connectionString) {
+  if (!connectionString) return null;
+  const cs = externalizeRenderHost(connectionString);
+  // External hostnames (with dots) require SSL; bare internal hosts don't.
+  let ssl = false;
+  try {
+    const u = new URL(cs);
     if (u.hostname.includes(".")) ssl = { rejectUnauthorized: false };
   } catch {}
   return new Pool({
-    connectionString,
+    connectionString: cs,
     ssl,
-    // Force IPv4 — Render's internal hostnames sometimes return AAAA
-    // records that the web service's network can't reach.
-    family: 4,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
     connectionTimeoutMillis: 10_000,

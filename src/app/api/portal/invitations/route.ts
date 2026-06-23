@@ -12,6 +12,7 @@ import {
   inviteUrl,
   isEmailConfigured,
   inviteEmailHtml,
+  inviteEmailText,
 } from "@/lib/invitations";
 
 export const dynamic = "force-dynamic";
@@ -218,16 +219,18 @@ export async function POST(req: NextRequest) {
 
     let emailed = false;
     if (isEmailConfigured()) {
+      const emailArgs = {
+        orgName,
+        roleLabel: ROLE_LABELS[role],
+        url,
+        inviterName: session.name,
+      };
       try {
         await sendEmail(
           email,
           `You're invited to ${orgName} on the AALB Evaluation Platform`,
-          inviteEmailHtml({
-            orgName,
-            roleLabel: ROLE_LABELS[role],
-            url,
-            inviterName: session.name,
-          })
+          inviteEmailHtml(emailArgs),
+          { text: inviteEmailText(emailArgs) }
         );
         emailed = true;
       } catch (e) {

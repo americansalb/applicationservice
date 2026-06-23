@@ -60,7 +60,7 @@ export default function LoginForm() {
           }}
         />
 
-        <LogoImage className="relative h-12" />
+        <LogoImage className="relative h-12 self-start" />
 
         <div className="relative">
           <h1 className="max-w-md font-display text-[2.5rem] font-medium leading-[1.12] tracking-tight">

@@ -13,13 +13,9 @@ export function getPool() {
     const p = new Pool({
       connectionString,
       ssl,
-      // Force IPv4 DNS resolution. Render's internal hostnames
-      // (dpg-XXXX-a, no .com) sometimes return AAAA records that the
-      // web service's network can't actually reach, which surfaces as
-      // intermittent "Can't reach database server" errors. IPv4 is
-      // reliable inside Render's private network.
-      // @ts-expect-error: pg accepts `family` but its types don't expose it.
-      family: 4,
+      // Let DNS resolve IPv4 *or* IPv6. Render's private network uses IPv6 for
+      // internal database hostnames (dpg-XXXX-a resolve to AAAA records only),
+      // so forcing IPv4 makes the lookup fail with getaddrinfo ENOTFOUND.
       keepAlive: true,
       keepAliveInitialDelayMillis: 10_000,
       connectionTimeoutMillis: 5_000,

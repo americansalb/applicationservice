@@ -16,8 +16,8 @@ function createPrismaClient() {
   const pool = new pg.Pool({
     connectionString,
     ssl,
-    // @ts-expect-error: pg accepts `family` but its types don't expose it.
-    family: 4,
+    // Let DNS resolve IPv4 or IPv6 — Render's internal hostnames are IPv6-only
+    // (AAAA), so forcing IPv4 here breaks with getaddrinfo ENOTFOUND.
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
     connectionTimeoutMillis: 5_000,

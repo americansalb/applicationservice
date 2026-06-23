@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ArrowRight, LogOut } from "lucide-react";
+import { Check, ChevronLeft, ArrowRight, LogOut, Search, X, Plus } from "lucide-react";
 import {
   visibleQuestions,
   resolveOptions,
@@ -10,22 +10,30 @@ import {
   isAnswered,
   sectionTitle,
   formatCount,
+  footprintSlugs,
+  languageList,
+  localSuggestions,
+  missingLocalLanguages,
+  ASL_VALUE,
   type Phase0Answers,
   type Phase0Question,
   type Phase0Info,
   type Phase0InfoBlock,
 } from "@/lib/phase0";
+import {
+  searchMetros,
+  getMetroProfile,
+  LANGUAGE_CATALOG,
+} from "@/lib/metroData";
 
 const AUTOSAVE_DEBOUNCE_MS = 1200;
 
 export default function Phase0Wizard({
   orgName,
   initialAnswers,
-  initialStatus,
 }: {
   orgName: string;
   initialAnswers: Phase0Answers;
-  initialStatus: string;
 }) {
   const router = useRouter();
   const ctx = useMemo(() => ({ orgName }), [orgName]);
@@ -34,13 +42,8 @@ export default function Phase0Wizard({
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
   const [finishing, setFinishing] = useState(false);
-  const [saveState, setSaveState] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  // Autosave plumbing. We save from refs (not closure state) and serialize
-  // in-flight saves so a fast typist never races two writes; a queued change is
-  // coalesced and flushed once the active save returns.
   const answersRef = useRef<Phase0Answers>(initialAnswers || {});
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
@@ -65,7 +68,7 @@ export default function Phase0Wizard({
       if (!res.ok) throw new Error("save failed");
       setSaveState("saved");
     } catch {
-      dirtyRef.current = true; // re-mark so the next attempt retries it
+      dirtyRef.current = true;
       setSaveState("error");
     } finally {
       savingRef.current = false;
@@ -90,7 +93,6 @@ export default function Phase0Wizard({
     if (dirtyRef.current) void doSave();
   }, [doSave]);
 
-  // Persist on tab close / navigation away if anything is unsaved.
   useEffect(() => {
     const handler = () => {
       if (!dirtyRef.current) return;
@@ -112,12 +114,8 @@ export default function Phase0Wizard({
     };
   }, []);
 
-  const steps = useMemo(
-    () => visibleQuestions(answers, ctx),
-    [answers, ctx]
-  );
+  const steps = useMemo(() => visibleQuestions(answers, ctx), [answers, ctx]);
 
-  // Keep the index in range if a branch change shortens the path.
   useEffect(() => {
     if (index > steps.length - 1) setIndex(Math.max(0, steps.length - 1));
   }, [steps.length, index]);
@@ -135,42 +133,43 @@ export default function Phase0Wizard({
     [scheduleSave]
   );
 
+  const asArr = (v: unknown): string[] =>
+    Array.isArray(v) ? (v as string[]) : [];
+
   const onSelect = useCallback(
     (q: Phase0Question, value: string) => {
-      const prev = answersRef.current;
-      let next: Phase0Answers = { ...prev, [q.id]: value };
-      // Changing the metro invalidates the language and ASL picks that were
-      // seeded from it, so clear them rather than leave stale selections.
-      if (q.id === "serve.location" && prev["serve.location"] !== value) {
-        delete next["serve.languages"];
-        delete next["serve.asl"];
-      }
-      applyAnswers(next);
+      applyAnswers({ ...answersRef.current, [q.id]: value });
     },
     [applyAnswers]
   );
-
-  const onToggle = useCallback(
-    (q: Phase0Question, value: string) => {
+  const addMulti = useCallback(
+    (qid: string, value: string) => {
       const prev = answersRef.current;
-      const arr = Array.isArray(prev[q.id])
-        ? [...(prev[q.id] as string[])]
-        : [];
-      const at = arr.indexOf(value);
-      if (at >= 0) arr.splice(at, 1);
-      else arr.push(value);
-      applyAnswers({ ...prev, [q.id]: arr });
+      const arr = asArr(prev[qid]);
+      if (!arr.includes(value)) applyAnswers({ ...prev, [qid]: [...arr, value] });
     },
     [applyAnswers]
   );
-
+  const removeMulti = useCallback(
+    (qid: string, value: string) => {
+      const prev = answersRef.current;
+      applyAnswers({ ...prev, [qid]: asArr(prev[qid]).filter((x) => x !== value) });
+    },
+    [applyAnswers]
+  );
+  const toggleMulti = useCallback(
+    (qid: string, value: string) => {
+      if (asArr(answersRef.current[qid]).includes(value)) removeMulti(qid, value);
+      else addMulti(qid, value);
+    },
+    [addMulti, removeMulti]
+  );
   const onText = useCallback(
     (q: Phase0Question, value: string) => {
       applyAnswers({ ...answersRef.current, [q.id]: value });
     },
     [applyAnswers]
   );
-
   const onScale = useCallback(
     (q: Phase0Question, value: number) => {
       applyAnswers({ ...answersRef.current, [q.id]: value });
@@ -180,7 +179,7 @@ export default function Phase0Wizard({
 
   const finish = useCallback(async () => {
     setFinishing(true);
-    dirtyRef.current = true; // force a final flush of the latest answers
+    dirtyRef.current = true;
     await doSave();
     router.push("/portal");
     router.refresh();
@@ -188,14 +187,10 @@ export default function Phase0Wizard({
 
   const goNext = useCallback(() => {
     if (!current) return;
-    if (
-      current.type !== "info" &&
-      current.required &&
-      !isAnswered(current, answersRef.current)
-    ) {
+    if (current.type !== "info" && current.required && !isAnswered(current, answersRef.current)) {
       setError(
         current.type === "multi_select"
-          ? "Select at least one to continue."
+          ? "Add at least one to continue."
           : "Please answer to continue."
       );
       return;
@@ -223,37 +218,23 @@ export default function Phase0Wizard({
   if (!current) return null;
 
   const nonInfo = steps.filter((s) => s.type !== "info");
-  const qPos =
-    current.type !== "info"
-      ? nonInfo.findIndex((s) => s.id === current.id) + 1
-      : 0;
+  const qPos = current.type !== "info" ? nonInfo.findIndex((s) => s.id === current.id) + 1 : 0;
   const isFirst = clampedIndex === 0;
   const isLast = clampedIndex === steps.length - 1;
   const pct = Math.round(((clampedIndex + 1) / steps.length) * 100);
-  const nextLabel = isLast
-    ? "Save and finish"
-    : current.id === "intro"
-      ? "Begin"
-      : "Continue";
+  const nextLabel = isLast ? "Save and finish" : current.id === "intro" ? "Begin" : "Continue";
 
   return (
     <div className="relative flex min-h-screen flex-col">
-      {/* Progress bar */}
       <div className="fixed inset-x-0 top-0 z-30 h-1 bg-sand-200/80">
-        <div
-          className="h-full bg-teal-600 transition-all duration-500 ease-out"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full bg-teal-600 transition-all duration-500 ease-out" style={{ width: `${pct}%` }} />
       </div>
 
-      {/* Header */}
       <header className="flex items-center justify-between gap-4 px-5 pt-6 sm:px-8">
         <div className="flex items-center gap-3">
-          <span className="font-display text-lg font-semibold tracking-tight text-ink">
-            AALB
-          </span>
+          <span className="font-display text-lg font-semibold tracking-tight text-ink">AALB</span>
           <span className="hidden text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 sm:inline">
-            Phase 0
+            Standards alignment
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -268,7 +249,6 @@ export default function Phase0Wizard({
         </div>
       </header>
 
-      {/* The question */}
       <main className="flex flex-1 items-start justify-center px-5 py-10 sm:items-center sm:py-14">
         <div key={current.id} className="phase0-in w-full max-w-2xl">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">
@@ -280,17 +260,12 @@ export default function Phase0Wizard({
             )}
           </p>
 
-          {current.type === "info"
-            ? renderInfo(resolveInfo(current, answers, ctx))
-            : renderQuestion()}
+          {current.type === "info" ? renderInfo(resolveInfo(current, answers, ctx)) : renderQuestion()}
 
-          {error && (
-            <p className="mt-4 text-sm font-medium text-clay-600">{error}</p>
-          )}
+          {error && <p className="mt-4 text-sm font-medium text-clay-600">{error}</p>}
         </div>
       </main>
 
-      {/* Footer navigation */}
       <footer className="sticky bottom-0 border-t border-sand-200/70 bg-sand-50/85 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-4 sm:px-0">
           {isFirst ? (
@@ -324,22 +299,12 @@ export default function Phase0Wizard({
         <h1 className="font-display text-[26px] font-semibold leading-snug tracking-tight text-ink sm:text-[30px]">
           {q.prompt}
         </h1>
-        {q.help && (
-          <p className="mt-2.5 text-[15px] leading-relaxed text-ink-soft">
-            {q.help}
-          </p>
-        )}
-
+        {q.help && <p className="mt-2.5 text-[15px] leading-relaxed text-ink-soft">{q.help}</p>}
         <div className="mt-6">{renderControl(q)}</div>
-
         {q.whyItMatters && (
           <div className="mt-6 rounded-xl bg-sand-100/70 px-4 py-3.5 ring-1 ring-inset ring-sand-200/70">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
-              Why we ask
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-              {q.whyItMatters}
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">Why we ask</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-soft">{q.whyItMatters}</p>
           </div>
         )}
       </div>
@@ -347,33 +312,48 @@ export default function Phase0Wizard({
   }
 
   function renderControl(q: Phase0Question) {
+    if (q.type === "multi_select" && q.widget === "metro") {
+      return (
+        <MetroPicker
+          selected={footprintSlugs(answers)}
+          onAdd={(slug) => addMulti(q.id, slug)}
+          onRemove={(slug) => removeMulti(q.id, slug)}
+        />
+      );
+    }
+    if (q.type === "multi_select" && q.widget === "language") {
+      return (
+        <LanguagePicker
+          selected={languageList(answers)}
+          suggestions={localSuggestions(answers).map((l) => l.name)}
+          missingCount={missingLocalLanguages(answers).length}
+          onToggle={(name) => toggleMulti(q.id, name)}
+          onAdd={(name) => addMulti(q.id, name)}
+          onRemove={(name) => removeMulti(q.id, name)}
+        />
+      );
+    }
     if (q.type === "single_select") {
       const opts = resolveOptions(q, answers, ctx);
       const value = answers[q.id];
       return (
         <div className="space-y-2.5">
-          {opts.map((o) => {
-            const selected = value === o.value;
-            return (
-              <OptionRow
-                key={o.value}
-                label={o.label}
-                hint={o.hint}
-                selected={selected}
-                multi={false}
-                onClick={() => onSelect(q, o.value)}
-              />
-            );
-          })}
+          {opts.map((o) => (
+            <OptionRow
+              key={o.value}
+              label={o.label}
+              hint={o.hint}
+              selected={value === o.value}
+              multi={false}
+              onClick={() => onSelect(q, o.value)}
+            />
+          ))}
         </div>
       );
     }
-
     if (q.type === "multi_select") {
       const opts = resolveOptions(q, answers, ctx);
-      const arr = Array.isArray(answers[q.id])
-        ? (answers[q.id] as string[])
-        : [];
+      const arr = asArr(answers[q.id]);
       return (
         <div className="space-y-2.5">
           {opts.map((o) => (
@@ -383,13 +363,12 @@ export default function Phase0Wizard({
               hint={o.hint}
               selected={arr.includes(o.value)}
               multi
-              onClick={() => onToggle(q, o.value)}
+              onClick={() => toggleMulti(q.id, o.value)}
             />
           ))}
         </div>
       );
     }
-
     if (q.type === "short_text") {
       return (
         <input
@@ -402,7 +381,6 @@ export default function Phase0Wizard({
         />
       );
     }
-
     if (q.type === "long_text") {
       return (
         <textarea
@@ -415,7 +393,6 @@ export default function Phase0Wizard({
         />
       );
     }
-
     if (q.type === "scale") {
       const min = q.scaleMin ?? 1;
       const max = q.scaleMax ?? 5;
@@ -424,22 +401,19 @@ export default function Phase0Wizard({
       return (
         <div>
           <div className="flex gap-2">
-            {nums.map((n) => {
-              const selected = value === n;
-              return (
-                <button
-                  key={n}
-                  onClick={() => onScale(q, n)}
-                  className={`flex h-12 flex-1 items-center justify-center rounded-xl border text-base font-semibold transition ${
-                    selected
-                      ? "border-teal-600 bg-teal-600 text-white"
-                      : "border-sand-200 bg-white text-ink-soft hover:border-teal-500/60"
-                  }`}
-                >
-                  {n}
-                </button>
-              );
-            })}
+            {nums.map((n) => (
+              <button
+                key={n}
+                onClick={() => onScale(q, n)}
+                className={`flex h-12 flex-1 items-center justify-center rounded-xl border text-base font-semibold transition ${
+                  value === n
+                    ? "border-teal-600 bg-teal-600 text-white"
+                    : "border-sand-200 bg-white text-ink-soft hover:border-teal-500/60"
+                }`}
+              >
+                {n}
+              </button>
+            ))}
           </div>
           {(q.scaleMinLabel || q.scaleMaxLabel) && (
             <div className="mt-2 flex justify-between text-xs text-ink-faint">
@@ -450,9 +424,231 @@ export default function Phase0Wizard({
         </div>
       );
     }
-
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Searchable footprint picker (metros).
+// ---------------------------------------------------------------------------
+
+function MetroPicker({
+  selected,
+  onAdd,
+  onRemove,
+}: {
+  selected: string[];
+  onAdd: (slug: string) => void;
+  onRemove: (slug: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const sel = new Set(selected);
+  const results = searchMetros(q, 8).filter((m) => !sel.has(m.slug));
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {selected.map((slug) => {
+            const name = getMetroProfile(slug)?.name ?? slug;
+            return (
+              <span
+                key={slug}
+                className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 py-1 pl-3 pr-1.5 text-sm font-medium text-teal-900 ring-1 ring-inset ring-teal-700/15"
+              >
+                {name}
+                <button
+                  onClick={() => onRemove(slug)}
+                  className="rounded-full p-0.5 text-teal-700/70 transition hover:bg-teal-700/10 hover:text-teal-900"
+                  aria-label={`Remove ${name}`}
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by city or state, like Houston or NJ"
+          className="w-full rounded-xl border border-sand-200 bg-white py-3 pl-10 pr-4 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+        />
+      </div>
+
+      <p className="mt-2 px-1 text-xs text-ink-faint">
+        {q.trim() ? "Matching metro areas" : "Largest metro areas, or search above"}
+      </p>
+      <div className="mt-1.5 max-h-72 space-y-1.5 overflow-auto">
+        {results.map((m) => (
+          <button
+            key={m.slug}
+            onClick={() => {
+              onAdd(m.slug);
+              setQ("");
+            }}
+            className="flex w-full items-center justify-between gap-3 rounded-lg border border-sand-200 bg-white px-4 py-2.5 text-left transition hover:border-teal-500/60 hover:bg-sand-50"
+          >
+            <span className="text-[15px] text-ink">{m.name}</span>
+            <span className="flex items-center gap-2 text-xs text-ink-faint">
+              {m.lepTotal != null && <span>{formatCount(m.lepTotal)} LEP</span>}
+              <Plus className="h-4 w-4 text-teal-700" strokeWidth={2} />
+            </span>
+          </button>
+        ))}
+        {results.length === 0 && (
+          <p className="px-1 py-2 text-sm text-ink-faint">
+            No match. Try a nearby larger city, or continue and tell us in the notes.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Searchable language picker, with local suggestions and an inline gap prompt.
+// ---------------------------------------------------------------------------
+
+function LanguagePicker({
+  selected,
+  suggestions,
+  missingCount,
+  onToggle,
+  onAdd,
+  onRemove,
+}: {
+  selected: string[];
+  suggestions: string[];
+  missingCount: number;
+  onToggle: (name: string) => void;
+  onAdd: (name: string) => void;
+  onRemove: (name: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const sel = new Set(selected);
+
+  // Local suggestions plus ASL (not in ACS spoken data), de-duplicated.
+  const suggestionRow = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const n of [...suggestions, ASL_VALUE]) {
+      if (!seen.has(n)) {
+        seen.add(n);
+        out.push(n);
+      }
+    }
+    return out;
+  }, [suggestions]);
+
+  const catalog = useMemo(() => [ASL_VALUE, ...LANGUAGE_CATALOG], []);
+  const query = q.trim().toLowerCase();
+  const results = query
+    ? catalog.filter((n) => n.toLowerCase().includes(query) && !sel.has(n)).slice(0, 8)
+    : [];
+
+  return (
+    <div>
+      <div className="mb-4">
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+          Your languages {selected.length > 0 && `(${selected.length})`}
+        </p>
+        {selected.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {selected.map((name) => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 py-1 pl-3 pr-1.5 text-sm font-medium text-teal-900 ring-1 ring-inset ring-teal-700/15"
+              >
+                {name}
+                <button
+                  onClick={() => onRemove(name)}
+                  className="rounded-full p-0.5 text-teal-700/70 transition hover:bg-teal-700/10 hover:text-teal-900"
+                  aria-label={`Remove ${name}`}
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-ink-faint">None yet. Add from the suggestions or search below.</p>
+        )}
+      </div>
+
+      {suggestionRow.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+            Common where you serve
+          </p>
+          {missingCount > 0 && (
+            <p className="mb-2 text-sm text-clay-700">
+              A few common local languages are not on your list yet. Tap to add them.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {suggestionRow.map((name) => {
+              const on = sel.has(name);
+              return (
+                <button
+                  key={name}
+                  onClick={() => onToggle(name)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border py-1.5 pl-3 pr-3 text-sm font-medium transition ${
+                    on
+                      ? "border-teal-600 bg-teal-50 text-teal-900"
+                      : "border-sand-300 bg-white text-ink-soft hover:border-teal-500/60 hover:bg-sand-50"
+                  }`}
+                >
+                  {on ? (
+                    <Check className="h-3.5 w-3.5 text-teal-700" strokeWidth={2.5} />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5 text-ink-faint" strokeWidth={2.5} />
+                  )}
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search all languages, like Pashto or Karen"
+          className="w-full rounded-xl border border-sand-200 bg-white py-3 pl-10 pr-4 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+        />
+      </div>
+      {results.length > 0 && (
+        <div className="mt-1.5 max-h-60 space-y-1.5 overflow-auto">
+          {results.map((name) => (
+            <button
+              key={name}
+              onClick={() => {
+                onAdd(name);
+                setQ("");
+              }}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-sand-200 bg-white px-4 py-2.5 text-left transition hover:border-teal-500/60 hover:bg-sand-50"
+            >
+              <span className="text-[15px] text-ink">{name}</span>
+              <Plus className="h-4 w-4 text-teal-700" strokeWidth={2} />
+            </button>
+          ))}
+        </div>
+      )}
+      {query && results.length === 0 && (
+        <p className="mt-2 px-1 text-sm text-ink-faint">No language matches that search.</p>
+      )}
+    </div>
+  );
 }
 
 function OptionRow({
@@ -479,18 +675,12 @@ function OptionRow({
     >
       <span className="min-w-0">
         <span className="block text-[15px] font-medium text-ink">{label}</span>
-        {hint && (
-          <span className="mt-0.5 block text-[13px] text-ink-faint">{hint}</span>
-        )}
+        {hint && <span className="mt-0.5 block text-[13px] text-ink-faint">{hint}</span>}
       </span>
       <span
         className={`flex h-5 w-5 shrink-0 items-center justify-center border transition ${
           multi ? "rounded-md" : "rounded-full"
-        } ${
-          selected
-            ? "border-teal-600 bg-teal-600 text-white"
-            : "border-sand-300 bg-white"
-        }`}
+        } ${selected ? "border-teal-600 bg-teal-600 text-white" : "border-sand-300 bg-white"}`}
       >
         {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
       </span>
@@ -498,16 +688,10 @@ function OptionRow({
   );
 }
 
-function SaveStatus({
-  state,
-}: {
-  state: "idle" | "saving" | "saved" | "error";
-}) {
+function SaveStatus({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
   if (state === "idle") return null;
-  if (state === "saving")
-    return <span className="text-xs text-ink-faint">Saving...</span>;
-  if (state === "error")
-    return <span className="text-xs text-clay-600">Could not save</span>;
+  if (state === "saving") return <span className="text-xs text-ink-faint">Saving...</span>;
+  if (state === "error") return <span className="text-xs text-clay-600">Could not save</span>;
   return (
     <span className="inline-flex items-center gap-1 text-xs text-ink-faint">
       <Check className="h-3.5 w-3.5 text-teal-600" strokeWidth={2.5} />
@@ -517,7 +701,7 @@ function SaveStatus({
 }
 
 // ---------------------------------------------------------------------------
-// Info-screen rendering (welcome, metro profile, coverage gap).
+// Info-screen rendering (welcome, local language picture).
 // ---------------------------------------------------------------------------
 
 function renderInfo(info: Phase0Info | null) {
@@ -528,9 +712,7 @@ function renderInfo(info: Phase0Info | null) {
         {info.heading}
       </h1>
       {info.intro && (
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft sm:text-base">
-          {info.intro}
-        </p>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft sm:text-base">{info.intro}</p>
       )}
       <div className="mt-6 space-y-4">
         {info.blocks.map((b, i) => (
@@ -544,11 +726,7 @@ function renderInfo(info: Phase0Info | null) {
 function InfoBlock({ block }: { block: Phase0InfoBlock }) {
   switch (block.kind) {
     case "paragraph":
-      return (
-        <p className="text-[15px] leading-relaxed text-ink-soft">
-          {block.text}
-        </p>
-      );
+      return <p className="text-[15px] leading-relaxed text-ink-soft">{block.text}</p>;
     case "note":
       return (
         <div className="rounded-xl border-l-2 border-teal-600 bg-teal-50/50 px-4 py-3 text-sm leading-relaxed text-ink-soft">
@@ -558,9 +736,7 @@ function InfoBlock({ block }: { block: Phase0InfoBlock }) {
     case "stat":
       return (
         <div className="rounded-2xl border border-sand-200/80 bg-white p-5 shadow-card">
-          <div className="font-display text-4xl font-semibold leading-none text-ink">
-            {block.value}
-          </div>
+          <div className="font-display text-4xl font-semibold leading-none text-ink">{block.value}</div>
           <div className="mt-1.5 text-sm text-ink-soft">{block.label}</div>
         </div>
       );
@@ -568,70 +744,43 @@ function InfoBlock({ block }: { block: Phase0InfoBlock }) {
       return (
         <div className="grid gap-3 sm:grid-cols-3">
           {block.items.map((it) => (
-            <div
-              key={it.label}
-              className="rounded-xl border border-sand-200/80 bg-white p-4 shadow-card"
-            >
+            <div key={it.label} className="rounded-xl border border-sand-200/80 bg-white p-4 shadow-card">
               <div className="text-sm font-semibold text-ink">{it.label}</div>
-              <div className="mt-1 text-[13px] leading-snug text-ink-faint">
-                {it.text}
-              </div>
+              <div className="mt-1 text-[13px] leading-snug text-ink-faint">{it.text}</div>
             </div>
           ))}
         </div>
       );
-    case "metroTable": {
-      const langs = block.profile.languages.slice(0, block.topN);
-      const max = Math.max(...langs.map((l) => l.lepCount), 1);
+    case "langBars": {
+      const max = Math.max(...block.items.map((l) => l.value), 1);
       return (
         <div className="rounded-2xl border border-sand-200/80 bg-white p-5 shadow-card">
           <div className="space-y-2.5">
-            {langs.map((l) => {
-              const w = Math.max(5, Math.round((l.lepCount / max) * 100));
+            {block.items.map((l) => {
+              const w = Math.max(5, Math.round((l.value / max) * 100));
               return (
                 <div key={l.name} className="flex items-center gap-3">
-                  <div className="w-24 shrink-0 truncate text-sm font-medium text-ink sm:w-32">
-                    {l.name}
-                  </div>
+                  <div className="w-24 shrink-0 truncate text-sm font-medium text-ink sm:w-36">{l.name}</div>
                   <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-sand-100">
                     <div
                       className="absolute inset-y-0 left-0 rounded-md bg-gradient-to-r from-teal-700 to-teal-500"
                       style={{ width: `${w}%` }}
                     />
                   </div>
-                  <div className="w-24 shrink-0 text-right text-sm tabular-nums text-ink-soft sm:w-28">
-                    {formatCount(l.lepCount)}
-                    <span className="ml-1 text-xs text-ink-faint">
-                      {l.lepRate}%
-                    </span>
+                  <div className="w-28 shrink-0 text-right text-sm tabular-nums text-ink-soft">
+                    {formatCount(l.value)}
+                    {l.note && <span className="ml-1 text-xs text-ink-faint">{l.note}</span>}
                   </div>
                 </div>
               );
             })}
           </div>
-          <p className="mt-4 border-t border-sand-200/70 pt-3 text-[11px] text-ink-faint">
-            {block.profile.source}. Share is the percent of each language&rsquo;s
-            speakers who report limited English.
-          </p>
+          {block.caption && (
+            <p className="mt-4 border-t border-sand-200/70 pt-3 text-[11px] text-ink-faint">{block.caption}</p>
+          )}
         </div>
       );
     }
-    case "languageGap":
-      return (
-        <div className="flex flex-wrap gap-2.5">
-          {block.missing.map((l) => (
-            <div
-              key={l.name}
-              className="rounded-xl border border-clay-500/25 bg-clay-100/60 px-4 py-3"
-            >
-              <div className="text-sm font-semibold text-ink">{l.name}</div>
-              <div className="mt-0.5 text-xs text-ink-soft">
-                {formatCount(l.lepCount)} with limited English
-              </div>
-            </div>
-          ))}
-        </div>
-      );
     default:
       return null;
   }

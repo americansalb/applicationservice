@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/pg";
+import dns from "node:dns/promises";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const out: Record<string, unknown> = {};
+  const out: Record<string, unknown> = { marker: "healthz-dns-diag-1" };
   const url = process.env.DATABASE_URL || "";
   // Redact the password so we can paste this safely.
   out.databaseUrl = url
@@ -12,13 +13,36 @@ export async function GET() {
     : "(unset)";
   out.hasSslmodeInUrl = url.includes("sslmode=");
   // Pull just the host portion for clarity.
+  let host = "";
   try {
     const u = new URL(url);
-    out.host = u.hostname;
+    host = u.hostname;
+    out.host = host;
     out.port = u.port || "(default 5432)";
     out.database = u.pathname.replace(/^\//, "");
   } catch {
     out.host = "(unparseable)";
+  }
+
+  // DNS diagnostics: what records does the DB host actually have, and via
+  // which family does it resolve? Distinguishes IPv4-only vs IPv6-only vs
+  // not-resolvable-at-all from this service's network.
+  if (host) {
+    const probe = async (fn: () => Promise<unknown>) => {
+      try {
+        return await fn();
+      } catch (e) {
+        const er = e as { code?: string; message?: string };
+        return { error: er.code || er.message || String(e) };
+      }
+    };
+    out.dns = {
+      lookupDefault: await probe(() => dns.lookup(host)),
+      lookupV4: await probe(() => dns.lookup(host, { family: 4 })),
+      lookupV6: await probe(() => dns.lookup(host, { family: 6 })),
+      resolveA: await probe(() => dns.resolve4(host)),
+      resolveAAAA: await probe(() => dns.resolve6(host)),
+    };
   }
 
   // Probe the pool with a SELECT 1 + timing. This bypasses all the

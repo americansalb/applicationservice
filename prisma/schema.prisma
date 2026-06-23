@@ -227,9 +227,9 @@ model Invitation {
   token          String       @unique
   email          String
   name           String?
-  role           String // MANAGER | PROFESSIONAL
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String // DEVELOPER | MANAGER | PROFESSIONAL
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invitedById    String?
   status         String       @default("pending") // pending | accepted | revoked
   expiresAt      DateTime

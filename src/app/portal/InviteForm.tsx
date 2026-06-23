@@ -16,7 +16,9 @@ export default function InviteForm({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [role, setRole] = useState<"MANAGER" | "PROFESSIONAL">("PROFESSIONAL");
+  const [role, setRole] = useState<"DEVELOPER" | "MANAGER" | "PROFESSIONAL">(
+    "PROFESSIONAL"
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [orgChoice, setOrgChoice] = useState(
@@ -45,7 +47,8 @@ export default function InviteForm({
     setLoading(true);
     try {
       const payload: Record<string, unknown> = { email, name, role };
-      if (mode === "developer") {
+      // Developers (AALB staff) have no organization.
+      if (mode === "developer" && role !== "DEVELOPER") {
         if (orgChoice === "__new__") payload.organizationName = newOrg;
         else payload.organizationId = orgChoice;
       }
@@ -189,16 +192,24 @@ export default function InviteForm({
                     <select
                       value={role}
                       onChange={(e) =>
-                        setRole(e.target.value as "MANAGER" | "PROFESSIONAL")
+                        setRole(
+                          e.target.value as
+                            | "DEVELOPER"
+                            | "MANAGER"
+                            | "PROFESSIONAL"
+                        )
                       }
                       className={inputClass}
                     >
                       <option value="PROFESSIONAL">Professional</option>
                       <option value="MANAGER">Manager</option>
+                      {mode === "developer" && (
+                        <option value="DEVELOPER">Developer</option>
+                      )}
                     </select>
                   </Field>
 
-                  {mode === "developer" && (
+                  {mode === "developer" && role !== "DEVELOPER" && (
                     <Field label="Organization">
                       <select
                         value={orgChoice}
@@ -215,7 +226,7 @@ export default function InviteForm({
                     </Field>
                   )}
 
-                  {mode === "developer" && orgChoice === "__new__" && (
+                  {mode === "developer" && role !== "DEVELOPER" && orgChoice === "__new__" && (
                     <Field label="New organization name" full>
                       <input
                         required

@@ -38,13 +38,7 @@ export default async function Phase0Page() {
 
   const initialAnswers = (org.phase0Answers ?? {}) as Phase0Answers;
 
-  return (
-    <Phase0Wizard
-      orgName={org.name}
-      initialAnswers={initialAnswers}
-      initialStatus={org.phase0Status}
-    />
-  );
+  return <Phase0Wizard orgName={org.name} initialAnswers={initialAnswers} />;
 }
 
 function SubmittedView({ orgName }: { orgName: string }) {

@@ -11,9 +11,8 @@ import {
   sectionTitle,
   formatCount,
   footprintSlugs,
-  languageList,
+  assessedLanguages,
   localSuggestions,
-  missingLocalLanguages,
   ASL_VALUE,
   type Phase0Answers,
   type Phase0Question,
@@ -324,9 +323,8 @@ export default function Phase0Wizard({
     if (q.type === "multi_select" && q.widget === "language") {
       return (
         <LanguagePicker
-          selected={languageList(answers)}
+          selected={assessedLanguages(answers)}
           suggestions={localSuggestions(answers).map((l) => l.name)}
-          missingCount={missingLocalLanguages(answers).length}
           onToggle={(name) => toggleMulti(q.id, name)}
           onAdd={(name) => addMulti(q.id, name)}
           onRemove={(name) => removeMulti(q.id, name)}
@@ -512,20 +510,19 @@ function MetroPicker({
 }
 
 // ---------------------------------------------------------------------------
-// Searchable language picker, with local suggestions and an inline gap prompt.
+// Searchable language picker for the assessment scope. Local languages are
+// offered as neutral quick adds, never as a roster the institution must cover.
 // ---------------------------------------------------------------------------
 
 function LanguagePicker({
   selected,
   suggestions,
-  missingCount,
   onToggle,
   onAdd,
   onRemove,
 }: {
   selected: string[];
   suggestions: string[];
-  missingCount: number;
   onToggle: (name: string) => void;
   onAdd: (name: string) => void;
   onRemove: (name: string) => void;
@@ -556,7 +553,7 @@ function LanguagePicker({
     <div>
       <div className="mb-4">
         <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-          Your languages {selected.length > 0 && `(${selected.length})`}
+          Languages we will assess {selected.length > 0 && `(${selected.length})`}
         </p>
         {selected.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -586,11 +583,9 @@ function LanguagePicker({
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
             Common where you serve
           </p>
-          {missingCount > 0 && (
-            <p className="mb-2 text-sm text-clay-700">
-              A few common local languages are not on your list yet. Tap to add them.
-            </p>
-          )}
+          <p className="mb-2 text-sm text-ink-faint">
+            Add the ones your staff interpret in. These are suggestions, not a list you need to cover.
+          </p>
           <div className="flex flex-wrap gap-2">
             {suggestionRow.map((name) => {
               const on = sel.has(name);

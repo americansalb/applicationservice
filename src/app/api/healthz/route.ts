@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/pg";
+import { Client } from "pg";
 import dns from "node:dns/promises";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const out: Record<string, unknown> = { marker: "healthz-dns-diag-1" };
+const RENDER_REGIONS = ["oregon", "ohio", "virginia", "frankfurt", "singapore"];
+
+export async function GET(req: Request) {
+  const out: Record<string, unknown> = { marker: "healthz-dns-diag-2" };
   const url = process.env.DATABASE_URL || "";
+  const wantExternal =
+    new URL(req.url).searchParams.get("probe") === "external";
   // Redact the password so we can paste this safely.
   out.databaseUrl = url
     ? url.replace(/:\/\/([^:]+):[^@]+@/, "://$1:***@")
@@ -43,6 +48,49 @@ export async function GET() {
       resolveA: await probe(() => dns.resolve4(host)),
       resolveAAAA: await probe(() => dns.resolve6(host)),
     };
+  }
+
+  // External-host probe (only on ?probe=external): the internal host doesn't
+  // resolve from this service, so try the database's public hostname in each
+  // Render region to find which one actually accepts a connection. Whichever
+  // returns ok:true tells us the region for the permanent fix.
+  if (wantExternal && host && !host.includes(".")) {
+    const results: Record<string, unknown> = {};
+    for (const region of RENDER_REGIONS) {
+      let cs = url;
+      try {
+        const u = new URL(url);
+        u.hostname = `${host}.${region}-postgres.render.com`;
+        if (!u.searchParams.has("sslmode")) u.searchParams.set("sslmode", "require");
+        cs = u.toString();
+      } catch {
+        /* keep original */
+      }
+      const c = new Client({
+        connectionString: cs,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 8000,
+        query_timeout: 5000,
+        statement_timeout: 5000,
+      });
+      const t = Date.now();
+      try {
+        await c.connect();
+        const r = await c.query("SELECT 1 AS ok");
+        results[region] = { ok: true, ms: Date.now() - t, rows: r.rowCount };
+      } catch (e) {
+        const er = e as { code?: string; message?: string };
+        results[region] = {
+          ok: false,
+          ms: Date.now() - t,
+          code: er.code || null,
+          message: (er.message || String(e)).slice(0, 90),
+        };
+      } finally {
+        await c.end().catch(() => {});
+      }
+    }
+    out.externalProbe = results;
   }
 
   // Probe the pool with a SELECT 1 + timing. This bypasses all the

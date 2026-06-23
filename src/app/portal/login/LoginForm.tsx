@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, ArrowRight } from "lucide-react";
-import { LogoImage, Wordmark } from "../Brand";
+import { LogoImage } from "../Brand";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -60,7 +60,7 @@ export default function LoginForm() {
           }}
         />
 
-        <LogoImage className="relative h-11" />
+        <LogoImage className="relative h-12" />
 
         <div className="relative">
           <h1 className="max-w-md font-display text-[2.5rem] font-medium leading-[1.12] tracking-tight">
@@ -110,7 +110,7 @@ export default function LoginForm() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sand-50 to-sand-100/60 px-6 py-12 sm:px-12">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
-            <Wordmark tone="dark" />
+            <LogoImage tone="dark" className="h-11" />
           </div>
 
           <div className="rounded-2xl border border-sand-200/80 bg-white p-8 shadow-raised sm:p-10">

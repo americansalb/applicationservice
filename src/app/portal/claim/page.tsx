@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { DEV_BOOTSTRAP_EMAIL } from "@/lib/appBootstrap";
-import { Wordmark } from "../Brand";
+import { LogoImage } from "../Brand";
 import ClaimForm from "./ClaimForm";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default async function ClaimPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sand-50 to-sand-100/60 px-6 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
-          <Wordmark tone="dark" />
+          <LogoImage tone="dark" className="h-12" />
         </div>
         <div className="rounded-2xl border border-sand-200/80 bg-white p-8 shadow-raised sm:p-10">
           {claimable ? (

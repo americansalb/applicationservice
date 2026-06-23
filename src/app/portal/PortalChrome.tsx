@@ -61,7 +61,7 @@ export default function PortalChrome({
     <>
       <div className="flex h-16 shrink-0 items-center px-5">
         <Link href="/portal" aria-label="Overview">
-          <LogoImage className="h-8" />
+          <LogoImage className="h-10" />
         </Link>
       </div>
 
@@ -138,7 +138,7 @@ export default function PortalChrome({
     <div className="min-h-screen bg-sand-50 lg:flex">
       {/* Mobile bar */}
       <div className="flex h-14 items-center justify-between bg-teal-950 px-4 lg:hidden">
-        <LogoImage className="h-7" />
+        <LogoImage className="h-9" />
         <button
           onClick={() => setOpen(true)}
           aria-label="Open menu"

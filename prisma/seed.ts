@@ -61,6 +61,27 @@ async function main() {
       console.log(
         `Bootstrap developer created: ${bootstrapEmail} (claim at /portal/claim)`
       );
+    } else if (
+      /^(1|true|yes)$/i.test(process.env.DEV_BOOTSTRAP_RESET || "") &&
+      !existingDev.mustChangePassword
+    ) {
+      // Recovery hatch: re-arm the one-time claim so the developer can set a
+      // new password at /portal/claim again. The claim itself stays gated by
+      // the setup password (DEV_BOOTSTRAP_PASSWORD). Only fires when the
+      // account is currently claimed, so leaving the flag on across redeploys
+      // won't keep regenerating an already-armed account.
+      //
+      // IMPORTANT: unset DEV_BOOTSTRAP_RESET after re-claiming, or the next
+      // deploy will reset the password you just set.
+      const randomPw = await bcrypt.hash(randomUUID() + randomUUID(), 12);
+      await prisma.appUser.update({
+        where: { id: existingDev.id },
+        data: { password: randomPw, mustChangePassword: true },
+      });
+      console.log(
+        `DEV_BOOTSTRAP_RESET: re-armed ${bootstrapEmail} — set a new password ` +
+          "at /portal/claim, then remove the DEV_BOOTSTRAP_RESET env var."
+      );
     }
   } catch (e) {
     console.warn(

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Building2, Mail } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
@@ -145,6 +146,12 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
                   {!o.standardsAlignedAt && (
                     <Phase0Chip status={o.phase0Status} />
                   )}
+                  <Link
+                    href={`/portal/review/${o.id}`}
+                    className="inline-flex shrink-0 items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-teal-500/50 hover:text-ink"
+                  >
+                    Review Phase 0
+                  </Link>
                   <StandardsToggle orgId={o.id} aligned={!!o.standardsAlignedAt} />
                 </div>
               );

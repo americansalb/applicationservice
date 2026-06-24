@@ -39,15 +39,19 @@ export default async function Phase0Page() {
   const initialAnswers = (org.phase0Answers ?? {}) as Phase0Answers;
 
   // The most recent language access plan on file, if any, so the wizard can show
-  // "Received: ..." on the plan step across reloads (it may have been uploaded
-  // earlier, or by a colleague via an emailed link).
-  const planDoc = await withDbRetry("portal.phase0.plandoc", () =>
-    prisma.planDocument.findFirst({
+  // "Received: ..." on the plan step across reloads. This lookup must never block
+  // the questionnaire: if the table is missing (a migration not yet applied) or
+  // the query fails, fall back to "no document" instead of crashing the page.
+  let planDoc: { filename: string } | null = null;
+  try {
+    planDoc = await prisma.planDocument.findFirst({
       where: { organizationId: user.organizationId as string },
       orderBy: { createdAt: "desc" },
       select: { filename: true },
-    })
-  );
+    });
+  } catch (e) {
+    console.error("[portal] phase0 plan-doc lookup failed (continuing):", e);
+  }
 
   return (
     <Phase0Wizard

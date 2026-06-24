@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/appSession";
 import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import PortalChrome from "../../PortalChrome";
+import ResetPhase0Button from "./ResetPhase0Button";
 import {
   SECTIONS,
   visibleQuestions,
@@ -46,8 +47,20 @@ export default async function ReviewPage({
   );
   if (!org) notFound();
 
-  const docs = await withDbRetry("portal.review.docs", () =>
-    prisma.planDocument.findMany({
+  // Tolerate the plan document table being absent (a migration not yet applied)
+  // so the review page still renders the saved answers instead of crashing.
+  type ReviewDoc = {
+    id: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    uploadedVia: string;
+    uploaderName: string | null;
+    createdAt: Date;
+  };
+  let docs: ReviewDoc[] = [];
+  try {
+    docs = await prisma.planDocument.findMany({
       where: { organizationId: org.id },
       orderBy: { createdAt: "desc" },
       select: {
@@ -59,8 +72,10 @@ export default async function ReviewPage({
         uploaderName: true,
         createdAt: true,
       },
-    })
-  );
+    });
+  } catch (e) {
+    console.error("[portal] review plan-doc list failed (continuing):", e);
+  }
 
   const answers = (org.phase0Answers ?? {}) as Phase0Answers;
   const ctx: Phase0Ctx = { orgName: org.name };
@@ -102,7 +117,10 @@ export default async function ReviewPage({
               : `${answeredCount} of ${visibleNonInfo.length} questions answered so far.`}
           </p>
         </div>
-        <StatusChip status={org.phase0Status} aligned={!!org.standardsAlignedAt} />
+        <div className="flex flex-col items-end gap-3">
+          <StatusChip status={org.phase0Status} aligned={!!org.standardsAlignedAt} />
+          <ResetPhase0Button orgId={org.id} orgName={org.name} />
+        </div>
       </div>
 
       {/* The uploaded plan document(s) */}

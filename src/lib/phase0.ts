@@ -37,7 +37,7 @@ export type Phase0QuestionType =
 
 // A multi_select can render as plain option cards (default) or as a searchable
 // picker for one of the large catalogs.
-export type Phase0Widget = "metro" | "language" | "plan";
+export type Phase0Widget = "metro" | "language" | "plan" | "states";
 
 export type Phase0InfoBlock =
   | { kind: "paragraph"; text: string }
@@ -142,6 +142,62 @@ export function needsPlanHelp(a: Phase0Answers): boolean {
 // Sections + questions: getting started, the language access plan, who you serve.
 // ---------------------------------------------------------------------------
 
+// The 50 states plus DC, for the legal-scope question (which states' laws AALB
+// analyzes). Distinct from the metro footprint, which drives the language picture.
+const US_STATES: Phase0Option[] = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "DC", label: "District of Columbia" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+];
+
 export const SECTIONS: Phase0Section[] = [
   { id: "start", title: "Getting started" },
   { id: "plan", title: "Your language access policies" },
@@ -215,12 +271,28 @@ export const QUESTIONS: Phase0Question[] = [
     ],
   },
   {
+    id: "law.states",
+    section: "plan",
+    type: "multi_select",
+    widget: "states",
+    required: true,
+    prompt: "Which states do you provide services in?",
+    help: "Pick every state you want included in this review.",
+    whyItMatters:
+      "Federal law sets the floor. Some states go further for healthcare language access, and many license sign language interpreters by setting, so we analyze the rules in each state you operate in.",
+    options: US_STATES,
+  },
+  {
     id: "law.applies",
     section: "plan",
     type: "info",
     prompt: "What applies to you",
     dynamicContent: (a) => {
       const funded = a["law.funding"];
+      const disclaimer: Phase0InfoBlock = {
+        kind: "note",
+        text: "This is AALB's consulting analysis to shape your standard, not legal advice. For a formal legal opinion, check with your own counsel.",
+      };
       if (funded === "yes") {
         return {
           heading: "Three sets of rules apply to you",
@@ -231,6 +303,7 @@ export const QUESTIONS: Phase0Question[] = [
               kind: "paragraph",
               text: "The Americans with Disabilities Act, Section 1557 of the Affordable Care Act, and Title VI of the Civil Rights Act all apply. Together they require qualified interpreters, free of charge, for patients with limited English and for Deaf or hard-of-hearing patients. AALB analyzes the specifics, including the state rules in the areas you serve, and folds them into your standard.",
             },
+            disclaimer,
           ],
         };
       }
@@ -244,6 +317,7 @@ export const QUESTIONS: Phase0Question[] = [
               kind: "paragraph",
               text: "The Americans with Disabilities Act requires effective communication with Deaf and hard-of-hearing patients regardless of funding. State laws where you operate may add more. AALB confirms the full picture and builds it into your standard.",
             },
+            disclaimer,
           ],
         };
       }
@@ -256,6 +330,7 @@ export const QUESTIONS: Phase0Question[] = [
             kind: "paragraph",
             text: "Most health systems accept Medicare or Medicaid, which brings Section 1557 and Title VI in alongside the ADA. AALB confirms your funding and the state rules where you serve, then builds the applicable requirements into your standard.",
           },
+          disclaimer,
         ],
       };
     },

@@ -13,26 +13,15 @@ export async function sendEmail(
   html: string,
   opts: SendOpts = {}
 ) {
+  // The sending identity. For the API providers (Resend/SendGrid) this must be a
+  // verified sender, so we never fall back to EMAIL_USER (an SMTP login, not a
+  // valid From). Set EMAIL_FROM to your verified sender.
   const from =
-    process.env.EMAIL_FROM ||
-    process.env.EMAIL_USER ||
-    "AALB Evaluation Platform <noreply@aalb.org>";
+    process.env.EMAIL_FROM || "AALB Evaluation Platform <noreply@aalb.org>";
   const { text, replyTo } = opts;
 
-  // Option 1: SMTP via nodemailer (EMAIL_SERVICE + EMAIL_USER + EMAIL_PASSWORD)
-  if (process.env.EMAIL_SERVICE && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-    const transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-    await transporter.sendMail({ from, to, subject, html, text, replyTo });
-    return;
-  }
-
-  // Option 2: Resend API
+  // Preferred: Resend API. Checked first so a stale or broken SMTP config (for
+  // example rejected Gmail credentials) cannot shadow a working Resend setup.
   if (process.env.RESEND_API_KEY) {
     const payload: Record<string, unknown> = { from, to: [to], subject, html };
     if (text) payload.text = text;
@@ -48,6 +37,19 @@ export async function sendEmail(
     if (!res.ok) {
       throw new Error(`Resend failed (${res.status}): ${await res.text()}`);
     }
+    return;
+  }
+
+  // Fallback: SMTP via nodemailer (EMAIL_SERVICE + EMAIL_USER + EMAIL_PASSWORD)
+  if (process.env.EMAIL_SERVICE && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    const transporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+    await transporter.sendMail({ from, to, subject, html, text, replyTo });
     return;
   }
 

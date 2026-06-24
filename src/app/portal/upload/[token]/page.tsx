@@ -7,7 +7,7 @@ import UploadForm from "./UploadForm";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Upload language access plan",
+  title: "Upload language access policies",
   robots: { index: false, follow: false },
 };
 

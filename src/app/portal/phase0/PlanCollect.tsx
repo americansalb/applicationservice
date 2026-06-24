@@ -185,7 +185,7 @@ export default function PlanCollect({
           <span className="text-sm font-semibold text-ink">Or paste a link</span>
         </div>
         <p className="mt-1 text-[13px] leading-snug text-ink-faint">
-          If {orgName}&apos;s plan lives online, an intranet page or shared drive.
+          If {orgName}&apos;s policies live online, an intranet page or shared drive.
         </p>
         <input
           type="url"

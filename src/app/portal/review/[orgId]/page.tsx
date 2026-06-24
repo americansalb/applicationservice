@@ -128,7 +128,7 @@ export default async function ReviewPage({
       {/* The uploaded plan document(s) */}
       <section className="mt-7">
         <h2 className="mb-3 font-display text-base font-medium text-ink">
-          Language access plan document
+          Language access policies
         </h2>
         {docs.length === 0 ? (
           <div className="rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 text-sm text-ink-soft shadow-card">
@@ -147,7 +147,7 @@ export default async function ReviewPage({
                 </a>
               </>
             ) : (
-              " It may arrive later, or the institution may not have a written plan."
+              " It may arrive later, or the institution may not have written policies."
             )}
           </div>
         ) : (

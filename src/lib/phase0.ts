@@ -144,7 +144,7 @@ export function needsPlanHelp(a: Phase0Answers): boolean {
 
 export const SECTIONS: Phase0Section[] = [
   { id: "start", title: "Getting started" },
-  { id: "plan", title: "Your language access plan" },
+  { id: "plan", title: "Your language access policies" },
   { id: "serve", title: "Who you serve" },
 ];
 
@@ -155,12 +155,12 @@ export const QUESTIONS: Phase0Question[] = [
     type: "info",
     prompt: "Build your Written Standards Documentation",
     dynamicContent: (_a, ctx) => ({
-      heading: "Let's set the standard for your interpreters",
-      intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter at ${ctx.orgName}, valid for two years.`,
+      heading: "Let's set your institutional standards",
+      intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter and bilingual staff member at ${ctx.orgName}, valid for two years.`,
       blocks: [
         {
           kind: "paragraph",
-          text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings interpreters are tested in, the credentials you require, and how performance is scored. By the end, you will have defined what qualified means here.",
+          text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings your team is tested in, the benchmarks you set, and how performance is scored. By the end, you will have defined what qualified means here.",
         },
         {
           kind: "paragraph",
@@ -177,24 +177,24 @@ export const QUESTIONS: Phase0Question[] = [
       ],
     }),
   },
-  // -- Section: Your language access plan (the frame, up front) --------------
+  // -- Section: Your language access policies (the frame, up front) ----------
   {
     id: "plan.frame",
     section: "plan",
     type: "info",
-    prompt: "Start with your language access plan",
+    prompt: "Start with your language access policies",
     info: {
-      heading: "First, your language access plan",
+      heading: "First, your language access policies",
       intro:
-        "Federal rules expect health systems to have a written language access plan. Reviewing yours is part of Phase 0.",
+        "Phase 0 starts with how your institution handles language access today. Reviewing your policies grounds the standard we build with you.",
       blocks: [
         {
           kind: "paragraph",
-          text: "Section 1557 of the Affordable Care Act, Title VI of the Civil Rights Act, and the Americans with Disabilities Act all expect a written plan for how you communicate with patients who have limited English, or who are Deaf or hard of hearing. AALB reviews your plan as part of setting your standard. We do not write it for you, and this is not an audit.",
+          text: "Most institutions have something written: a language access policy, interpreter-services procedures, patient-rights language, or a formal plan. Share whatever you have. AALB reviews it alongside the federal and state requirements that apply to you, and uses it to ground your standard. We do not write your policy for you, and this is not an audit.",
         },
         {
           kind: "note",
-          text: "This is separate from the languages we assess your staff in. The questions here help us review the plan you already have, or point you in the right direction if you do not have one yet.",
+          text: "This is separate from the languages we assess your staff in. The questions here help us review the policies you already have, or point you in the right direction if they are not written down yet.",
         },
       ],
     },
@@ -204,13 +204,13 @@ export const QUESTIONS: Phase0Question[] = [
     section: "plan",
     type: "single_select",
     required: true,
-    prompt: "Do you have a written language access plan?",
+    prompt: "Do you have written language access policies?",
     whyItMatters:
-      "Your plan is the backdrop for everything we set here. Knowing where it stands tells us what to review and where you might want support.",
+      "Your policies are the backdrop for everything we set here. Knowing where they stand tells us what to review and where you might want support.",
     options: [
-      { value: "current", label: "Yes, and it is current" },
-      { value: "outdated", label: "Yes, but it is out of date" },
-      { value: "no", label: "No, not yet" },
+      { value: "current", label: "Yes, and they are current" },
+      { value: "outdated", label: "Yes, but they are out of date" },
+      { value: "no", label: "No, nothing written yet" },
       { value: "unsure", label: "I am not sure" },
     ],
   },
@@ -221,10 +221,10 @@ export const QUESTIONS: Phase0Question[] = [
     widget: "plan",
     required: false,
     showIf: (a) => hasPlanDocument(a),
-    prompt: "Share your language access plan with AALB",
-    help: "Upload the document now, email an upload link to a colleague, or paste a link if it lives online. This is optional here. If it is easier later, AALB will request it during review.",
+    prompt: "Share your language access policies with AALB",
+    help: "Upload them now, email an upload link to a colleague, or paste a link if they live online. Optional here. If it is easier later, AALB will request them during review.",
     whyItMatters:
-      "We review the actual plan, not a summary, so your standard reflects what you have already committed to.",
+      "We review your actual policies, not a summary, so your standard reflects what you have already committed to.",
     placeholder: "https://",
     maxLength: 500,
   },
@@ -232,20 +232,20 @@ export const QUESTIONS: Phase0Question[] = [
     id: "plan.educate",
     section: "plan",
     type: "info",
-    prompt: "About language access plans",
+    prompt: "About language access policies",
     showIf: (a) => needsPlanHelp(a),
     info: {
-      heading: "No plan yet? That is common, and fixable.",
+      heading: "Nothing written yet? That is common, and fine.",
       intro:
-        "Many institutions we work with start right here. A language access plan is simply your written commitment to how a patient who needs an interpreter actually gets one.",
+        "Many institutions we work with start right here. Written language access policies are simply how you commit, on paper, to getting a patient who needs an interpreter the right one.",
       blocks: [
         {
           kind: "paragraph",
-          text: "At a minimum, a plan names the languages you serve, how staff request an interpreter, how you handle both spoken languages and American Sign Language, and how you avoid leaning on family members or untrained bilingual staff. Section 1557 expects this in writing.",
+          text: "In practice this covers the languages you serve, how staff request an interpreter, how you handle both spoken languages and American Sign Language, and how you avoid leaning on family members or untrained staff. AALB analyzes the federal and state requirements that apply to you and folds them in.",
         },
         {
           kind: "note",
-          text: "Not having one does not slow down your assessment. A few quick questions about how things work today will show us what alignment takes, and we can help from there.",
+          text: "Not having them written does not slow down your assessment. A few quick questions about how things work today show us what alignment takes, and we can help from there.",
         },
       ],
     },
@@ -259,7 +259,7 @@ export const QUESTIONS: Phase0Question[] = [
     prompt: "Today, when a patient needs an interpreter, what usually happens?",
     help: "Check all that happen, even the ones you would rather change. An honest picture helps us most.",
     whyItMatters:
-      "This is the honest baseline. Section 1557 expects qualified interpreters and discourages leaning on family or minors, so where you are now tells us how far there is to go.",
+      "This is the honest baseline. Qualified interpreters are the expectation, and leaning on family or minors is discouraged, so where you are now tells us how far there is to go.",
     options: [
       { value: "qualified", label: "We bring in a qualified or contracted interpreter" },
       { value: "remote", label: "We use a phone or video interpreting line" },
@@ -277,7 +277,7 @@ export const QUESTIONS: Phase0Question[] = [
     showIf: (a) => needsPlanHelp(a),
     prompt: "Do patients see, in their own language, that interpreters are free?",
     whyItMatters:
-      "Telling patients, in their language, that free interpreting exists is one of the most basic Section 1557 requirements, and one of the most often missed.",
+      "Telling patients, in their language, that free interpreting exists is a basic expectation, and one of the most often missed.",
     options: [
       { value: "posted", label: "Yes, posted and translated into our common languages" },
       { value: "english", label: "We post something, but mostly in English" },
@@ -292,7 +292,7 @@ export const QUESTIONS: Phase0Question[] = [
     required: false,
     reflective: true,
     showIf: (a) => needsPlanHelp(a),
-    prompt: "What has kept a written plan from happening so far?",
+    prompt: "What has kept written policies from happening so far?",
     help: "Budget, staffing, unclear ownership, never being asked. Whatever it is.",
     whyItMatters:
       "Knowing the real constraint, not the textbook one, tells us what alignment will actually take here.",
@@ -305,7 +305,7 @@ export const QUESTIONS: Phase0Question[] = [
     type: "single_select",
     required: true,
     showIf: (a) => needsPlanHelp(a),
-    prompt: "Would it help to have AALB support your language access plan?",
+    prompt: "Would it help to have AALB support your language access policies?",
     whyItMatters:
       "No pressure either way. This just tells us whether to follow up after your standard is set.",
     options: [

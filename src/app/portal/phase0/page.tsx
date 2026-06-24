@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import type { Phase0Answers } from "@/lib/phase0";
 import Phase0Wizard from "./Phase0Wizard";
+import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function Phase0Page() {
   // the query fails, fall back to "no document" instead of crashing the page.
   let planDoc: { filename: string } | null = null;
   try {
+    await ensurePlanDocumentTable();
     planDoc = await prisma.planDocument.findFirst({
       where: { organizationId: user.organizationId as string },
       orderBy: { createdAt: "desc" },

@@ -4,6 +4,7 @@ import { withDbRetry, isConnectivityError } from "@/lib/dbRetry";
 import { userFromToken } from "@/lib/appSession";
 import { SESSION_COOKIE } from "@/lib/appAuth";
 import { isSameOrigin } from "@/lib/appRequest";
+import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
     // Remove any uploaded plan documents. Tolerate the table being absent (a
     // migration not yet applied) so the reset still succeeds.
     try {
+      await ensurePlanDocumentTable();
       await prisma.planDocument.deleteMany({ where: { organizationId: orgId } });
     } catch (e) {
       console.error("[portal] phase0 reset: plan-doc delete skipped:", e);

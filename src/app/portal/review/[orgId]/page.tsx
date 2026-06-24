@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import PortalChrome from "../../PortalChrome";
 import ResetPhase0Button from "./ResetPhase0Button";
+import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 import {
   SECTIONS,
   visibleQuestions,
@@ -60,6 +61,7 @@ export default async function ReviewPage({
   };
   let docs: ReviewDoc[] = [];
   try {
+    await ensurePlanDocumentTable();
     docs = await prisma.planDocument.findMany({
       where: { organizationId: org.id },
       orderBy: { createdAt: "desc" },

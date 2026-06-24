@@ -54,7 +54,7 @@ export default function StandardsToggle({
     <button
       onClick={() => set(true)}
       disabled={busy}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold text-ink-soft transition hover:bg-sand-100 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-ink-soft transition hover:bg-zinc-100 disabled:opacity-50"
     >
       {busy ? "Saving…" : "Mark standards aligned"}
     </button>

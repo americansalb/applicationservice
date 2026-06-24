@@ -1,31 +1,38 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { DEV_BOOTSTRAP_EMAIL, devReclaimOpen } from "@/lib/appBootstrap";
-import { LogoImage } from "../Brand";
-import ClaimForm from "./ClaimForm";
+import { LogoImage } from "../../Brand";
+import { verifyPlanUploadToken } from "@/lib/planUpload";
+import UploadForm from "./UploadForm";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Developer setup",
+  title: "Upload language access plan",
   robots: { index: false, follow: false },
 };
 
-export default async function ClaimPage() {
-  let claimable = false;
-  try {
-    const u = await prisma.appUser.findUnique({
-      where: { email: DEV_BOOTSTRAP_EMAIL },
-      select: { role: true, mustChangePassword: true },
-    });
-    // Missing account → allow first-time bootstrap. Existing account → only a
-    // DEVELOPER that's unclaimed or within the recovery window.
-    claimable =
-      !u || (u.role === "DEVELOPER" && (u.mustChangePassword || devReclaimOpen()));
-  } catch {
-    // If the DB is briefly unreachable, treat as not-claimable; refresh retries.
-    claimable = false;
+// Public, token-gated page so a colleague can upload an institution's language
+// access plan without an account. The signed token carries the org id; we verify
+// it and resolve the org name for display. Mirrors the invitation accept page.
+export default async function PlanUploadPage({
+  params,
+}: {
+  params: { token: string };
+}) {
+  const orgId = verifyPlanUploadToken(params.token);
+  let orgName: string | null = null;
+  if (orgId) {
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { name: true },
+      });
+      orgName = org?.name ?? null;
+    } catch {
+      orgName = null;
+    }
   }
+  const valid = !!orgId && !!orgName;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-zinc-50 to-zinc-100/60 px-6 py-12">
@@ -34,16 +41,16 @@ export default async function ClaimPage() {
           <LogoImage tone="dark" className="h-12" />
         </div>
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-8 shadow-raised sm:p-10">
-          {claimable ? (
-            <ClaimForm email={DEV_BOOTSTRAP_EMAIL} />
+          {valid ? (
+            <UploadForm token={params.token} orgName={orgName as string} />
           ) : (
             <div className="text-center">
               <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-                Setup complete
+                Upload link unavailable
               </h1>
               <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-                This developer account has already been set up. For security,
-                this page only works once.
+                This upload link is invalid or has expired. Please ask whoever
+                sent it for a new one.
               </p>
               <a
                 href="/portal/login"

@@ -33,7 +33,7 @@ export default function PortalLayout({
 }) {
   return (
     <div
-      className={`${display.variable} ${ui.variable} font-ui min-h-screen bg-sand-50 text-ink antialiased`}
+      className={`${display.variable} ${ui.variable} font-ui min-h-screen bg-zinc-50 text-ink antialiased`}
     >
       {children}
     </div>

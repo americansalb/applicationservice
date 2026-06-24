@@ -107,13 +107,13 @@ export default function LoginForm() {
       </div>
 
       {/* Form panel */}
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sand-50 to-sand-100/60 px-6 py-12 sm:px-12">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-zinc-50 to-zinc-100/60 px-6 py-12 sm:px-12">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <LogoImage tone="dark" className="h-11" />
           </div>
 
-          <div className="rounded-2xl border border-sand-200/80 bg-white p-8 shadow-raised sm:p-10">
+          <div className="rounded-2xl border border-zinc-200/80 bg-white p-8 shadow-raised sm:p-10">
             <h2 className="font-display text-[26px] font-semibold tracking-tight text-ink">
               Sign in
             </h2>
@@ -208,4 +208,4 @@ export default function LoginForm() {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-sand-300 bg-white py-2.5 pl-10 pr-3.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
+  "block w-full rounded-lg border border-zinc-300 bg-white py-2.5 pl-10 pr-3.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";

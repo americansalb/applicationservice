@@ -22,14 +22,6 @@ const config: Config = {
           900: "#134e4a",
           950: "#042f2e",
         },
-        // Warm institutional palette (used only by the /portal platform).
-        sand: {
-          50: "#FBF8F2",
-          100: "#F5EEE3",
-          200: "#EAE0D0",
-          300: "#D9C9B2",
-          400: "#C7B294",
-        },
         ink: {
           DEFAULT: "#241F1A",
           soft: "#5A5147",

@@ -110,11 +110,11 @@ export default async function ProfessionalDashboard({
       {/* TRAIL */}
       <div className="mx-auto max-w-4xl px-6 py-10 sm:px-10">
         <div className="relative pl-10">
-          <div className="absolute bottom-10 left-[18px] top-2 w-0.5 bg-sand-300" />
+          <div className="absolute bottom-10 left-[18px] top-2 w-0.5 bg-zinc-300" />
 
           {/* Step 0 — institution foundation */}
           <div className="relative mb-7">
-            <div className="absolute -left-10 top-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-faint ring-2 ring-sand-300">
+            <div className="absolute -left-10 top-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-faint ring-2 ring-zinc-300">
               {aligned ? "✓" : "0"}
             </div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">
@@ -133,7 +133,7 @@ export default async function ProfessionalDashboard({
               1
             </div>
             <div className="overflow-hidden rounded-2xl border border-teal-700/20 bg-white shadow-raised">
-              <div className="border-b border-sand-200/70 bg-teal-50/50 px-6 py-3">
+              <div className="border-b border-zinc-200/70 bg-teal-50/50 px-6 py-3">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
                     Your next step
@@ -168,7 +168,7 @@ export default async function ProfessionalDashboard({
                       </span>
                     </div>
                   ) : (
-                    <p className="rounded-lg bg-sand-50 px-4 py-3 text-sm text-ink-soft ring-1 ring-inset ring-sand-200">
+                    <p className="rounded-lg bg-zinc-50 px-4 py-3 text-sm text-ink-soft ring-1 ring-inset ring-zinc-200">
                       This step opens once {orgName} completes Phase 0. We&rsquo;ll
                       email you the moment it&rsquo;s ready.
                     </p>
@@ -181,7 +181,7 @@ export default async function ProfessionalDashboard({
           {/* Locked steps */}
           {locked.map((s) => (
             <div key={s.code} className="relative mb-5 opacity-70">
-              <div className="absolute -left-10 top-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-faint ring-2 ring-sand-300">
+              <div className="absolute -left-10 top-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink-faint ring-2 ring-zinc-300">
                 <Lock className="h-3.5 w-3.5" strokeWidth={2} />
               </div>
               <p className="text-sm font-semibold text-ink">
@@ -193,7 +193,7 @@ export default async function ProfessionalDashboard({
 
           {/* Goal */}
           <div className="relative mt-8">
-            <div className="absolute -left-[46px] top-0 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-teal-700 to-teal-950 text-teal-200 ring-4 ring-sand-50">
+            <div className="absolute -left-[46px] top-0 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-teal-700 to-teal-950 text-teal-200 ring-4 ring-zinc-50">
               <Award className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div className="ml-1 rounded-2xl border border-dashed border-teal-700/30 bg-teal-50/40 px-6 py-5">

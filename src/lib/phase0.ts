@@ -37,7 +37,7 @@ export type Phase0QuestionType =
 
 // A multi_select can render as plain option cards (default) or as a searchable
 // picker for one of the large catalogs.
-export type Phase0Widget = "metro" | "language";
+export type Phase0Widget = "metro" | "language" | "plan";
 
 export type Phase0InfoBlock =
   | { kind: "paragraph"; text: string }
@@ -126,12 +126,25 @@ export function missingLocalLanguages(
     .filter((l) => !chosen.has(l.name));
 }
 
+// Whether the plan.has answer means a document exists to collect and review.
+export function hasPlanDocument(a: Phase0Answers): boolean {
+  const v = a["plan.has"];
+  return v === "current" || v === "outdated";
+}
+
+// Whether the plan.has answer means no plan is on file yet (educate + offer help).
+export function needsPlanHelp(a: Phase0Answers): boolean {
+  const v = a["plan.has"];
+  return v === "no" || v === "unsure";
+}
+
 // ---------------------------------------------------------------------------
-// Sections + questions. Phase A: Getting started + Who you serve.
+// Sections + questions: getting started, the language access plan, who you serve.
 // ---------------------------------------------------------------------------
 
 export const SECTIONS: Phase0Section[] = [
   { id: "start", title: "Getting started" },
+  { id: "plan", title: "Your language access plan" },
   { id: "serve", title: "Who you serve" },
 ];
 
@@ -151,12 +164,12 @@ export const QUESTIONS: Phase0Question[] = [
         },
         {
           kind: "paragraph",
-          text: "It takes about ten minutes and saves as you go. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
+          text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
         },
         {
           kind: "expect",
           items: [
-            { label: "About ten minutes", text: "Most institutions finish in one sitting." },
+            { label: "Thorough by design", text: "It asks real questions about real care." },
             { label: "Saved as you go", text: "Step away and pick up where you left off." },
             { label: "Becomes your standard", text: "AALB finalizes it, then your interpreters begin." },
           ],
@@ -164,6 +177,196 @@ export const QUESTIONS: Phase0Question[] = [
       ],
     }),
   },
+  // -- Section: Your language access plan (the frame, up front) --------------
+  {
+    id: "plan.frame",
+    section: "plan",
+    type: "info",
+    prompt: "Start with your language access plan",
+    info: {
+      heading: "First, your language access plan",
+      intro:
+        "Federal rules expect health systems to have a written language access plan. Reviewing yours is part of Phase 0.",
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "Section 1557 of the Affordable Care Act, Title VI of the Civil Rights Act, and the Americans with Disabilities Act all expect a written plan for how you communicate with patients who have limited English, or who are Deaf or hard of hearing. AALB reviews your plan as part of setting your standard. We do not write it for you, and this is not an audit.",
+        },
+        {
+          kind: "note",
+          text: "This is separate from the languages we assess your staff in. The questions here help us review the plan you already have, or point you in the right direction if you do not have one yet.",
+        },
+      ],
+    },
+  },
+  {
+    id: "plan.has",
+    section: "plan",
+    type: "single_select",
+    required: true,
+    prompt: "Do you have a written language access plan?",
+    whyItMatters:
+      "Your plan is the backdrop for everything we set here. Knowing where it stands tells us what to review and where you might want support.",
+    options: [
+      { value: "current", label: "Yes, and it is current" },
+      { value: "outdated", label: "Yes, but it is out of date" },
+      { value: "no", label: "No, not yet" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "plan.link",
+    section: "plan",
+    type: "short_text",
+    widget: "plan",
+    required: false,
+    showIf: (a) => hasPlanDocument(a),
+    prompt: "Share your language access plan with AALB",
+    help: "Upload the document now, email an upload link to a colleague, or paste a link if it lives online. This is optional here. If it is easier later, AALB will request it during review.",
+    whyItMatters:
+      "We review the actual plan, not a summary, so your standard reflects what you have already committed to.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "plan.covers",
+    section: "plan",
+    type: "multi_select",
+    required: true,
+    showIf: (a) => hasPlanDocument(a),
+    prompt: "Which of these does your current plan actually spell out?",
+    help: "Check the ones your written plan addresses today. It is fine to leave gaps unchecked. That is what we look at together.",
+    whyItMatters:
+      "These are the parts Section 1557 expects a plan to cover. What you leave unchecked is where our review focuses, so this saves us both time.",
+    options: [
+      { value: "coordinator", label: "A named owner for language access" },
+      { value: "notices", label: "Notices, in patients' languages, that interpreters are free" },
+      { value: "request", label: "How staff identify a language and request an interpreter" },
+      { value: "qualified", label: "A standard for who counts as a qualified interpreter" },
+      { value: "familyLimits", label: "Limits on using family members or minors to interpret" },
+      { value: "remote", label: "How phone and video interpreting are used" },
+      { value: "vitalDocs", label: "Which documents get translated" },
+      { value: "training", label: "Staff training on the plan" },
+      { value: "review", label: "A schedule to review and update the plan" },
+    ],
+  },
+  {
+    id: "plan.lastUpdated",
+    section: "plan",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasPlanDocument(a),
+    prompt: "When was the plan last reviewed or updated?",
+    whyItMatters:
+      "The Section 1557 rules were rewritten recently. A plan written before then usually needs updating, and we will flag what changed.",
+    options: [
+      { value: "recent", label: "Within the last year" },
+      { value: "mid", label: "One to three years ago" },
+      { value: "old", label: "More than three years ago" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "plan.practiceGap",
+    section: "plan",
+    type: "long_text",
+    required: false,
+    reflective: true,
+    showIf: (a) => hasPlanDocument(a),
+    prompt: "Reading your own plan honestly, where does day-to-day practice drift from what it says?",
+    help: "One or two lines is plenty. There is no wrong answer.",
+    whyItMatters:
+      "A plan is only as good as what happens at the bedside. Naming the drift is where real alignment starts.",
+    placeholder: "For example: the plan says no family members, but after hours it still happens.",
+    maxLength: 2000,
+  },
+  {
+    id: "plan.educate",
+    section: "plan",
+    type: "info",
+    prompt: "About language access plans",
+    showIf: (a) => needsPlanHelp(a),
+    info: {
+      heading: "No plan yet? That is common, and fixable.",
+      intro:
+        "Many institutions we work with start right here. A language access plan is simply your written commitment to how a patient who needs an interpreter actually gets one.",
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "At a minimum, a plan names the languages you serve, how staff request an interpreter, how you handle both spoken languages and American Sign Language, and how you avoid leaning on family members or untrained bilingual staff. Section 1557 expects this in writing.",
+        },
+        {
+          kind: "note",
+          text: "Not having one does not slow down your assessment. A few quick questions about how things work today will show us what alignment takes, and we can help from there.",
+        },
+      ],
+    },
+  },
+  {
+    id: "plan.todayAccess",
+    section: "plan",
+    type: "multi_select",
+    required: true,
+    showIf: (a) => needsPlanHelp(a),
+    prompt: "Today, when a patient needs an interpreter, what usually happens?",
+    help: "Check all that happen, even the ones you would rather change. An honest picture helps us most.",
+    whyItMatters:
+      "This is the honest baseline. Section 1557 expects qualified interpreters and discourages leaning on family or minors, so where you are now tells us how far there is to go.",
+    options: [
+      { value: "qualified", label: "We bring in a qualified or contracted interpreter" },
+      { value: "remote", label: "We use a phone or video interpreting line" },
+      { value: "bilingualStaff", label: "A bilingual staff member steps in" },
+      { value: "family", label: "A family member or friend interprets" },
+      { value: "minors", label: "Sometimes a child or minor interprets" },
+      { value: "adhoc", label: "It varies, with no set process" },
+    ],
+  },
+  {
+    id: "plan.todayNotices",
+    section: "plan",
+    type: "single_select",
+    required: true,
+    showIf: (a) => needsPlanHelp(a),
+    prompt: "Do patients see, in their own language, that interpreters are free?",
+    whyItMatters:
+      "Telling patients, in their language, that free interpreting exists is one of the most basic Section 1557 requirements, and one of the most often missed.",
+    options: [
+      { value: "posted", label: "Yes, posted and translated into our common languages" },
+      { value: "english", label: "We post something, but mostly in English" },
+      { value: "none", label: "Not really" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "plan.barriers",
+    section: "plan",
+    type: "long_text",
+    required: false,
+    reflective: true,
+    showIf: (a) => needsPlanHelp(a),
+    prompt: "What has kept a written plan from happening so far?",
+    help: "Budget, staffing, unclear ownership, never being asked. Whatever it is.",
+    whyItMatters:
+      "Knowing the real constraint, not the textbook one, tells us what alignment will actually take here.",
+    placeholder: "A sentence is enough.",
+    maxLength: 2000,
+  },
+  {
+    id: "plan.help",
+    section: "plan",
+    type: "single_select",
+    required: true,
+    showIf: (a) => needsPlanHelp(a),
+    prompt: "Would it help to have AALB support your language access plan?",
+    whyItMatters:
+      "No pressure either way. This just tells us whether to follow up after your standard is set.",
+    options: [
+      { value: "yes", label: "Yes, we would like help with this" },
+      { value: "later", label: "Maybe later" },
+      { value: "no", label: "No thank you, we will handle it" },
+    ],
+  },
+
   {
     id: "serve.footprint",
     section: "serve",

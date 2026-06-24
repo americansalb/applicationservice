@@ -1,8 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Plus, X, Copy, Check, Mail } from "lucide-react";
+import { Plus, X, Copy, Check, Mail, ChevronDown } from "lucide-react";
+import type { Phase0Config } from "@/lib/phase0Config";
+
+// Loaded on demand: pulls in the metro/language datasets only when a developer
+// opens the optional "what we know" block, keeping both dashboards light.
+const Phase0ConfigFields = dynamic(() => import("./phase0/Phase0ConfigFields"), {
+  ssr: false,
+});
 
 type Organization = { id: string; name: string };
 type Result = { url: string; emailed: boolean; email: string };
@@ -29,6 +37,8 @@ export default function InviteForm({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [copied, setCopied] = useState(false);
+  const [config, setConfig] = useState<Phase0Config>({});
+  const [showConfig, setShowConfig] = useState(false);
 
   function close() {
     setOpen(false);
@@ -38,6 +48,8 @@ export default function InviteForm({
     setEmail("");
     setNewOrg("");
     setRole("PROFESSIONAL");
+    setConfig({});
+    setShowConfig(false);
     if (result) router.refresh();
   }
 
@@ -49,8 +61,10 @@ export default function InviteForm({
       const payload: Record<string, unknown> = { email, name, role };
       // Developers (AALB staff) have no organization.
       if (mode === "developer" && role !== "DEVELOPER") {
-        if (orgChoice === "__new__") payload.organizationName = newOrg;
-        else payload.organizationId = orgChoice;
+        if (orgChoice === "__new__") {
+          payload.organizationName = newOrg;
+          payload.phase0Config = config;
+        } else payload.organizationId = orgChoice;
       }
       const res = await fetch("/api/portal/invitations", {
         method: "POST",
@@ -238,6 +252,39 @@ export default function InviteForm({
                     </Field>
                   )}
                 </div>
+
+                {mode === "developer" &&
+                  role !== "DEVELOPER" &&
+                  orgChoice === "__new__" && (
+                    <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowConfig((s) => !s)}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold text-ink">
+                            Add what you already know (optional)
+                          </span>
+                          <span className="mt-0.5 block text-xs text-ink-faint">
+                            Sector, setting, languages, and locations pre-fill
+                            their questionnaire.
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-ink-faint transition ${
+                            showConfig ? "rotate-180" : ""
+                          }`}
+                          strokeWidth={2}
+                        />
+                      </button>
+                      {showConfig && (
+                        <div className="mt-4 border-t border-zinc-200 pt-4">
+                          <Phase0ConfigFields value={config} onChange={setConfig} />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 <div className="mt-6 flex items-center justify-end gap-3">
                   <button

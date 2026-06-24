@@ -11,6 +11,7 @@ import {
   missingRequiredIds,
   type Phase0Answers,
 } from "@/lib/phase0";
+import { sanitizePhase0Config } from "@/lib/phase0Config";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function PUT(req: NextRequest) {
     const org = await withDbRetry("portal.phase0.load", () =>
       prisma.organization.findUnique({
         where: { id: orgId },
-        select: { name: true, phase0Status: true },
+        select: { name: true, phase0Status: true, phase0Config: true },
       })
     );
     if (!org) {
@@ -86,7 +87,10 @@ export async function PUT(req: NextRequest) {
     }
 
     if (submit) {
-      const missing = missingRequiredIds(answers, { orgName: org.name });
+      const missing = missingRequiredIds(answers, {
+        orgName: org.name,
+        config: sanitizePhase0Config(org.phase0Config),
+      });
       if (missing.length > 0) {
         return NextResponse.json(
           {

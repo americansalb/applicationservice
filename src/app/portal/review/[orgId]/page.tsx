@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import PortalChrome from "../../PortalChrome";
 import ResetPhase0Button from "./ResetPhase0Button";
+import Phase0ConfigForm from "./Phase0ConfigForm";
 import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 import {
   SECTIONS,
@@ -17,6 +18,7 @@ import {
   type Phase0Ctx,
 } from "@/lib/phase0";
 import { getMetroProfile } from "@/lib/metroData";
+import { sanitizePhase0Config } from "@/lib/phase0Config";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,7 @@ export default async function ReviewPage({
         name: true,
         phase0Status: true,
         phase0Answers: true,
+        phase0Config: true,
         standardsAlignedAt: true,
       },
     })
@@ -80,7 +83,8 @@ export default async function ReviewPage({
   }
 
   const answers = (org.phase0Answers ?? {}) as Phase0Answers;
-  const ctx: Phase0Ctx = { orgName: org.name };
+  const config = sanitizePhase0Config(org.phase0Config);
+  const ctx: Phase0Ctx = { orgName: org.name, config };
   const summary = buildSummary(answers, ctx);
   const visibleNonInfo = visibleQuestions(answers, ctx).filter(
     (q) => q.type !== "info"
@@ -183,6 +187,19 @@ export default async function ReviewPage({
             ))}
           </div>
         )}
+      </section>
+
+      {/* What AALB pre-configured, which seeds the manager's questionnaire */}
+      <section className="mt-8">
+        <h2 className="mb-1 font-display text-base font-medium text-ink">
+          What AALB knows
+        </h2>
+        <p className="mb-3 text-sm leading-relaxed text-ink-soft">
+          Pre-fill what you already know from the engagement. {org.name}&rsquo;s
+          manager opens the questionnaire with these in place and can adjust
+          anything.
+        </p>
+        <Phase0ConfigForm orgId={org.id} initialConfig={config} />
       </section>
 
       {/* Saved answers, read back by section */}

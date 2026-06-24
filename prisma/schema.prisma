@@ -221,6 +221,9 @@ model Organization {
   phase0Status      String    @default("not_started")
   phase0Answers     Json      @default("{}")
   phase0SubmittedAt DateTime?
+  // What AALB already knows about the institution (see migration
+  // 12_org_phase0_config). Developer-authored; seeds the manager's questionnaire.
+  phase0Config      Json      @default("{}")
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

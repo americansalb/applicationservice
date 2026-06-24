@@ -14,10 +14,15 @@ import {
   type Aggregate,
   type AggregatedLanguage,
 } from "./metroData";
+import type { Phase0Config } from "./phase0Config";
 
 export type Phase0Answers = Record<string, unknown>;
 
-export type Phase0Ctx = { orgName: string };
+// Ctx carries the org name plus what AALB pre-configured about the institution
+// (see phase0Config.ts). config lets copy and future sections tailor to the
+// sector and setting; the facts that map to questions are seeded into answers
+// up front (seedAnswersFromConfig), not read from here at render time.
+export type Phase0Ctx = { orgName: string; config?: Phase0Config };
 
 export type Phase0Status =
   | "not_started"
@@ -145,7 +150,7 @@ export function needsPlanHelp(a: Phase0Answers): boolean {
 
 // The 50 states plus DC, for the legal-scope question (which states' laws AALB
 // analyzes). Distinct from the metro footprint, which drives the language picture.
-const US_STATES: Phase0Option[] = [
+export const US_STATES: Phase0Option[] = [
   { value: "AL", label: "Alabama" },
   { value: "AK", label: "Alaska" },
   { value: "AZ", label: "Arizona" },
@@ -211,32 +216,53 @@ export const QUESTIONS: Phase0Question[] = [
     section: "start",
     type: "info",
     prompt: "Build your Written Standards Documentation",
-    dynamicContent: (_a, ctx) => ({
-      heading: "Let's set your institutional standards",
-      intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter and bilingual staff member at ${ctx.orgName}, valid for two years.`,
-      blocks: [
-        {
-          kind: "paragraph",
-          text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings your team is tested in, the benchmarks you set, and how performance is scored. By the end, you will have defined what qualified means here.",
-        },
-        {
-          kind: "paragraph",
-          text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
-        },
-        {
-          kind: "expect",
-          items: [
-            { label: "Thorough by design", text: "It asks real questions about real care." },
-            { label: "Saved as you go", text: "Step away and pick up where you left off." },
-            { label: "Becomes your standard", text: "AALB finalizes it, then your interpreters begin." },
-          ],
-        },
-        {
-          kind: "fineprint",
-          text: "By continuing, you accept our terms of use. This gathers information to set your assessment standard and is not legal advice.",
-        },
-      ],
-    }),
+    dynamicContent: (_a, ctx) => {
+      const cfg = ctx.config;
+      const hasSeed = !!(
+        cfg &&
+        (cfg.federalFunding ||
+          (cfg.states?.length ?? 0) > 0 ||
+          (cfg.languages?.length ?? 0) > 0 ||
+          (cfg.metros?.length ?? 0) > 0)
+      );
+      // When AALB has pre-filled known facts, tell the manager up front so the
+      // pre-selected answers read as a head start to confirm, not a mystery.
+      const seedNote: Phase0InfoBlock[] = hasSeed
+        ? [
+            {
+              kind: "note",
+              text: `We have already filled in what AALB knows about ${ctx.orgName} from your engagement, like the languages and places you serve. Look it over and change anything that is not right.`,
+            },
+          ]
+        : [];
+      return {
+        heading: "Let's set your institutional standards",
+        intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter and bilingual staff member at ${ctx.orgName}, valid for two years.`,
+        blocks: [
+          {
+            kind: "paragraph",
+            text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings your team is tested in, the benchmarks you set, and how performance is scored. By the end, you will have defined what qualified means here.",
+          },
+          {
+            kind: "paragraph",
+            text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
+          },
+          ...seedNote,
+          {
+            kind: "expect",
+            items: [
+              { label: "Thorough by design", text: "It asks real questions about real care." },
+              { label: "Saved as you go", text: "Step away and pick up where you left off." },
+              { label: "Becomes your standard", text: "AALB finalizes it, then your interpreters begin." },
+            ],
+          },
+          {
+            kind: "fineprint",
+            text: "By continuing, you accept our terms of use. This gathers information to set your assessment standard and is not legal advice.",
+          },
+        ],
+      };
+    },
   },
   // -- Section: Your language access policies --------------------------------
   {

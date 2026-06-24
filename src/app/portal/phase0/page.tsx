@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/appSession";
 import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import type { Phase0Answers } from "@/lib/phase0";
+import { seedAnswersFromConfig, sanitizePhase0Config } from "@/lib/phase0Config";
 import Phase0Wizard from "./Phase0Wizard";
 import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 
@@ -23,7 +24,12 @@ export default async function Phase0Page() {
   const org = await withDbRetry("portal.phase0.page", () =>
     prisma.organization.findUnique({
       where: { id: user.organizationId as string },
-      select: { name: true, phase0Status: true, phase0Answers: true },
+      select: {
+        name: true,
+        phase0Status: true,
+        phase0Answers: true,
+        phase0Config: true,
+      },
     })
   );
   if (!org) redirect("/portal");
@@ -37,7 +43,13 @@ export default async function Phase0Page() {
     return <SubmittedView orgName={org.name} />;
   }
 
-  const initialAnswers = (org.phase0Answers ?? {}) as Phase0Answers;
+  // Seed the questionnaire with what AALB pre-configured, then let any saved
+  // answers win: once the manager has touched a field, their value stands.
+  const config = sanitizePhase0Config(org.phase0Config);
+  const initialAnswers: Phase0Answers = {
+    ...seedAnswersFromConfig(config),
+    ...((org.phase0Answers ?? {}) as Phase0Answers),
+  };
 
   // The most recent language access plan on file, if any, so the wizard can show
   // "Received: ..." on the plan step across reloads. This lookup must never block
@@ -60,6 +72,7 @@ export default async function Phase0Page() {
       orgName={org.name}
       initialAnswers={initialAnswers}
       planDoc={planDoc?.filename ?? null}
+      config={config}
     />
   );
 }

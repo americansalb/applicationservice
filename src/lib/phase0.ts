@@ -109,6 +109,15 @@ export function languageList(a: Phase0Answers): string[] {
   return asStringArray(a["serve.languages"]);
 }
 
+// Spoken (non-signed) languages the institution named. Drives the spoken-language
+// interpreting follow-ups, parallel to the ASL ones gated on ASL_VALUE.
+export function spokenLanguages(a: Phase0Answers): string[] {
+  return languageList(a).filter((l) => l !== ASL_VALUE);
+}
+export function hasSpokenLanguages(a: Phase0Answers): boolean {
+  return spokenLanguages(a).length > 0;
+}
+
 // The combined language reality across every metro the institution serves.
 export function localAggregate(a: Phase0Answers): Aggregate {
   return aggregateLanguages(footprintSlugs(a));
@@ -618,6 +627,77 @@ export const QUESTIONS: Phase0Question[] = [
     help: "We have surfaced the most common languages where you serve. Add the ones you need, search the full list for any others, and include American Sign Language if you serve Deaf or hard-of-hearing patients.",
     whyItMatters:
       "We build a separate standard for each language you name. This is the exact list your interpreters will be assessed in, so name every language your patients actually need.",
+  },
+  // -- Spoken-language interpreting (parallel to the ASL block below) ---------
+  {
+    id: "serve.spokenSource",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasSpokenLanguages(a),
+    prompt: "When a patient needs a spoken-language interpreter, who provides it?",
+    help: "Think across the spoken languages you named, like Spanish.",
+    whyItMatters:
+      "We assess the interpreters your institution employs. Knowing whether you rely on your own staff, an outside service, or both tells us who that is.",
+    options: [
+      { value: "staff", label: "Our own staff interpreters" },
+      { value: "outside", label: "An outside agency or interpreting service" },
+      { value: "both", label: "Both our staff and an outside service" },
+      { value: "varies", label: "It varies, with no set arrangement" },
+    ],
+  },
+  {
+    id: "serve.spokenMode",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasSpokenLanguages(a),
+    prompt: "How is spoken-language interpreting usually delivered?",
+    help: "If it depends on the language or setting, pick the closest.",
+    whyItMatters:
+      "In-person, phone, and video interpreting place different demands on an interpreter, so we match your standard to how yours actually work.",
+    options: [
+      { value: "inperson", label: "In person" },
+      { value: "phone", label: "Over the phone" },
+      { value: "video", label: "By video" },
+      { value: "mix", label: "A mix, depending on the situation" },
+    ],
+  },
+  {
+    id: "serve.staffLanguages",
+    section: "serve",
+    type: "multi_select",
+    required: true,
+    showIf: (a) =>
+      hasSpokenLanguages(a) &&
+      ["staff", "both"].includes(String(a["serve.spokenSource"])) &&
+      spokenLanguages(a).length > 1,
+    dynamicOptions: (a) =>
+      spokenLanguages(a).map((name) => ({ value: name, label: name })),
+    prompt: "Which of these languages do your own staff interpreters cover?",
+    help: "Pick the languages where you employ interpreters on staff. We assess those interpreters; an outside service can cover the rest.",
+    whyItMatters:
+      "These are the spoken languages we build a staff assessment for. The ones your staff cover are the ones your interpreters are tested in.",
+  },
+  {
+    id: "serve.staffCount",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    showIf: (a) =>
+      hasSpokenLanguages(a) &&
+      ["staff", "both"].includes(String(a["serve.spokenSource"])),
+    prompt: "How many staff interpreters do you employ for spoken languages?",
+    help: "A rough count is fine. Count people on your payroll, not an outside agency's.",
+    whyItMatters:
+      "Your own spoken-language interpreters are the ones we assess, so we need to know how many there are.",
+    options: [
+      { value: "1-2", label: "1 to 2" },
+      { value: "3-5", label: "3 to 5" },
+      { value: "6-10", label: "6 to 10" },
+      { value: "11+", label: "11 or more" },
+      { value: "unsure", label: "Not sure" },
+    ],
   },
   {
     id: "serve.aslMode",

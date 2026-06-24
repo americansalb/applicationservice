@@ -94,8 +94,15 @@ async function setupCareers() {
       path.join(__dirname, "prisma", "migrations")
     );
     for (const { file, sql } of migrations) {
-      console.log(`[careers] Applying ${path.basename(path.dirname(file))}...`);
-      await pool.query(sql);
+      const name = path.basename(path.dirname(file));
+      // Migrations are idempotent and additive, so one failing must not block the
+      // rest (or the seeding below). Log loudly and keep going.
+      try {
+        console.log(`[careers] Applying ${name}...`);
+        await pool.query(sql);
+      } catch (e) {
+        console.error(`[careers] Migration ${name} FAILED (continuing):`, e.message);
+      }
     }
 
     await pool.query(

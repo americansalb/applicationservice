@@ -177,26 +177,87 @@ export const QUESTIONS: Phase0Question[] = [
       ],
     }),
   },
-  // -- Section: Your language access policies (the frame, up front) ----------
+  // -- Section: Your language access policies (what applies, then your docs) -
   {
     id: "plan.frame",
     section: "plan",
     type: "info",
-    prompt: "Start with your language access policies",
+    prompt: "What applies to you",
     info: {
-      heading: "First, your language access policies",
+      heading: "First, what applies to you",
       intro:
-        "Phase 0 starts with how your institution handles language access today. Reviewing your policies grounds the standard we build with you.",
+        "Phase 0 starts by pinning down which rules your standard has to meet, then reviewing how you meet them today.",
       blocks: [
         {
           kind: "paragraph",
-          text: "Most institutions have something written: a language access policy, interpreter-services procedures, patient-rights language, or a formal plan. Share whatever you have. AALB reviews it alongside the federal and state requirements that apply to you, and uses it to ground your standard. We do not write your policy for you, and this is not an audit.",
+          text: "The Americans with Disabilities Act applies to every institution. Section 1557 of the Affordable Care Act and Title VI of the Civil Rights Act apply when you accept federal funding, and they carry the specific language-access duties. State laws can add more where you operate. A couple of quick questions settle which apply, and AALB does the detailed analysis from there.",
         },
         {
           kind: "note",
-          text: "This is separate from the languages we assess your staff in. The questions here help us review the policies you already have, or point you in the right direction if they are not written down yet.",
+          text: "Then we look at the language access policies you already have. We do not write them for you, and this is not an audit.",
         },
       ],
+    },
+  },
+  {
+    id: "law.funding",
+    section: "plan",
+    type: "single_select",
+    required: true,
+    prompt: "Does your institution accept federal funding?",
+    help: "Medicare, Medicaid, and federal grants all count. Most hospitals and health systems do.",
+    whyItMatters:
+      "This decides which laws your standard is held to. The ADA applies either way. Section 1557 and Title VI apply when you accept federal funding, and they carry the specific duty to provide qualified interpreters free of charge.",
+    options: [
+      { value: "yes", label: "Yes, including Medicare, Medicaid, or federal grants" },
+      { value: "no", label: "No federal funding" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "law.applies",
+    section: "plan",
+    type: "info",
+    prompt: "What applies to you",
+    dynamicContent: (a) => {
+      const funded = a["law.funding"];
+      if (funded === "yes") {
+        return {
+          heading: "Three sets of rules apply to you",
+          intro:
+            "Because you accept federal funding, your standard has to meet all three.",
+          blocks: [
+            {
+              kind: "paragraph",
+              text: "The Americans with Disabilities Act, Section 1557 of the Affordable Care Act, and Title VI of the Civil Rights Act all apply. Together they require qualified interpreters, free of charge, for patients with limited English and for Deaf or hard-of-hearing patients. AALB analyzes the specifics, including the state rules in the areas you serve, and folds them into your standard.",
+            },
+          ],
+        };
+      }
+      if (funded === "no") {
+        return {
+          heading: "The ADA applies to you",
+          intro:
+            "Section 1557 and Title VI follow federal funding, so they may not apply here, but AALB will confirm.",
+          blocks: [
+            {
+              kind: "paragraph",
+              text: "The Americans with Disabilities Act requires effective communication with Deaf and hard-of-hearing patients regardless of funding. State laws where you operate may add more. AALB confirms the full picture and builds it into your standard.",
+            },
+          ],
+        };
+      }
+      return {
+        heading: "We will confirm what applies",
+        intro:
+          "The ADA applies either way. Section 1557 and Title VI follow federal funding.",
+        blocks: [
+          {
+            kind: "paragraph",
+            text: "Most health systems accept Medicare or Medicaid, which brings Section 1557 and Title VI in alongside the ADA. AALB confirms your funding and the state rules where you serve, then builds the applicable requirements into your standard.",
+          },
+        ],
+      };
     },
   },
   {

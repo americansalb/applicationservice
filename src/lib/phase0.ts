@@ -4,19 +4,10 @@
 // interpreter is assessed against, valid two years. Every question sets a real
 // parameter in that standard, and the copy says so.
 //
-// Two language ideas live here and are kept deliberately separate, because
-// conflating them reads as scope creep:
-//   1. Assessment scope (assess.languages): the languages AALB assesses the
-//      institution's own staff in. Contracted, named in advance, one rubric each.
-//   2. Community language picture (serve.*): advisory input to the language
-//      access plan AALB reviews. It informs the plan, it is not a test roster.
-// The language access plan is introduced up front, as the frame, so the
-// community questions visibly serve the plan review.
-//
 // Questions are curated here in code (no builder UI). Question ids are permanent
-// keys in the org's phase0Answers JSONB. Sections currently shipped: getting
-// started, language access plan, who you serve, what we assess. Later sections
-// are added without touching the engine or the wizard.
+// keys in the org's phase0Answers JSONB. Never rename an id. Phase A ships the
+// framework plus Section 1 (Who you serve); later sections are added without
+// touching the engine or the wizard.
 
 import {
   aggregateLanguages,
@@ -46,7 +37,7 @@ export type Phase0QuestionType =
 
 // A multi_select can render as plain option cards (default) or as a searchable
 // picker for one of the large catalogs.
-export type Phase0Widget = "metro" | "language" | "plan";
+export type Phase0Widget = "metro" | "language";
 
 export type Phase0InfoBlock =
   | { kind: "paragraph"; text: string }
@@ -108,50 +99,40 @@ function asStringArray(v: unknown): string[] {
 export function footprintSlugs(a: Phase0Answers): string[] {
   return asStringArray(a["serve.footprint"]);
 }
-
-// The languages AALB will assess the institution's staff in: the contracted
-// scope, named here. Distinct from the community language picture, which is
-// advisory input to the language access plan review.
-export function assessedLanguages(a: Phase0Answers): string[] {
-  return asStringArray(a["assess.languages"]);
+export function languageList(a: Phase0Answers): string[] {
+  return asStringArray(a["serve.languages"]);
 }
 
-// The combined community language reality across every metro the institution
-// serves. Advisory: it informs the language access plan, not the assessment scope.
+// The combined language reality across every metro the institution serves.
 export function localAggregate(a: Phase0Answers): Aggregate {
   return aggregateLanguages(footprintSlugs(a));
 }
 
-// Local languages offered as quick adds on the assessment-scope screen (most
-// common first). Suggestions the institution may choose from, never a roster it
-// is expected to cover.
+// Local languages we suggest on the languages screen (most common first).
 export function localSuggestions(a: Phase0Answers, n = 12): AggregatedLanguage[] {
   return localAggregate(a).languages.slice(0, n);
 }
 
-// Whether the plan.has answer means a document exists to collect and review.
-export function hasPlanDocument(a: Phase0Answers): boolean {
-  const v = a["plan.has"];
-  return v === "current" || v === "outdated";
-}
-
-// Whether the plan.has answer means no plan is on file yet (educate + offer help).
-export function needsPlanHelp(a: Phase0Answers): boolean {
-  const v = a["plan.has"];
-  return v === "no" || v === "unsure";
+// High-prevalence local languages the institution has not added yet. These power
+// the live "commonly needed here" prompt on the languages screen: the gap is an
+// action (add it), not a dead-end callout.
+export function missingLocalLanguages(
+  a: Phase0Answers,
+  n = 6
+): AggregatedLanguage[] {
+  const chosen = new Set(languageList(a));
+  return localAggregate(a)
+    .languages.slice(0, n)
+    .filter((l) => !chosen.has(l.name));
 }
 
 // ---------------------------------------------------------------------------
-// Sections + questions. Shipped: getting started, language access plan, who you
-// serve (advisory), what we assess (the contracted scope). Later sections add
-// settings, who interprets today, expectations, and compliance.
+// Sections + questions. Phase A: Getting started + Who you serve.
 // ---------------------------------------------------------------------------
 
 export const SECTIONS: Phase0Section[] = [
   { id: "start", title: "Getting started" },
-  { id: "plan", title: "Your language access plan" },
   { id: "serve", title: "Who you serve" },
-  { id: "assess", title: "What we assess" },
 ];
 
 export const QUESTIONS: Phase0Question[] = [
@@ -162,219 +143,27 @@ export const QUESTIONS: Phase0Question[] = [
     prompt: "Build your Written Standards Documentation",
     dynamicContent: (_a, ctx) => ({
       heading: "Let's set the standard for your interpreters",
-      intro: `Phase 0 is where we set the standard for ${ctx.orgName}. It does two things: it defines exactly how AALB assesses your interpreters, and it reviews your language access plan against the federal rules. The result is your Written Standards Documentation, valid for two years.`,
+      intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter at ${ctx.orgName}, valid for two years.`,
       blocks: [
         {
           kind: "paragraph",
-          text: "Two things stay separate here, and it is worth saying up front. The languages we assess your staff in are the ones you contracted for, named by you. The wider set of languages your community speaks is something we look at to review your language access plan. It is not a list we test your staff against.",
+          text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings interpreters are tested in, the credentials you require, and how performance is scored. By the end, you will have defined what qualified means here.",
         },
         {
           kind: "paragraph",
-          text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken. There are no wrong answers.",
+          text: "It takes about ten minutes and saves as you go. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
         },
         {
           kind: "expect",
           items: [
-            { label: "Thorough by design", text: "It asks real questions about real care." },
-            { label: "Saved as you go", text: "Step away and finish across sittings." },
-            { label: "Becomes your standard", text: "AALB reviews it, then your interpreters begin." },
+            { label: "About ten minutes", text: "Most institutions finish in one sitting." },
+            { label: "Saved as you go", text: "Step away and pick up where you left off." },
+            { label: "Becomes your standard", text: "AALB finalizes it, then your interpreters begin." },
           ],
         },
       ],
     }),
   },
-
-  // -- Section: Your language access plan (the frame, up front) --------------
-  {
-    id: "plan.frame",
-    section: "plan",
-    type: "info",
-    prompt: "Start with your language access plan",
-    info: {
-      heading: "First, your language access plan",
-      intro:
-        "Federal rules expect health systems to have a written language access plan. Reviewing yours is part of Phase 0.",
-      blocks: [
-        {
-          kind: "paragraph",
-          text: "Section 1557 of the Affordable Care Act, Title VI of the Civil Rights Act, and the Americans with Disabilities Act all expect a written plan for how you communicate with patients who have limited English, or who are Deaf or hard of hearing. AALB reviews your plan as part of setting your standard. We do not write it for you, and this is not an audit.",
-        },
-        {
-          kind: "note",
-          text: "This is separate from the languages we assess your staff in. The questions here help us review the plan you already have, or point you in the right direction if you do not have one yet.",
-        },
-      ],
-    },
-  },
-  {
-    id: "plan.has",
-    section: "plan",
-    type: "single_select",
-    required: true,
-    prompt: "Do you have a written language access plan?",
-    whyItMatters:
-      "Your plan is the backdrop for everything we set here. Knowing where it stands tells us what to review and where you might want support.",
-    options: [
-      { value: "current", label: "Yes, and it is current" },
-      { value: "outdated", label: "Yes, but it is out of date" },
-      { value: "no", label: "No, not yet" },
-      { value: "unsure", label: "I am not sure" },
-    ],
-  },
-  {
-    id: "plan.link",
-    section: "plan",
-    type: "short_text",
-    widget: "plan",
-    required: false,
-    showIf: (a) => hasPlanDocument(a),
-    prompt: "Share your language access plan with AALB",
-    help: "Upload the document now, email an upload link to a colleague, or paste a link if it lives online. This is optional here. If it is easier later, AALB will request it during review.",
-    whyItMatters:
-      "We review the actual plan, not a summary, so your standard reflects what you have already committed to.",
-    placeholder: "https://",
-    maxLength: 500,
-  },
-  {
-    id: "plan.covers",
-    section: "plan",
-    type: "multi_select",
-    required: true,
-    showIf: (a) => hasPlanDocument(a),
-    prompt: "Which of these does your current plan actually spell out?",
-    help: "Check the ones your written plan addresses today. It is fine to leave gaps unchecked. That is what we look at together.",
-    whyItMatters:
-      "These are the parts Section 1557 expects a plan to cover. What you leave unchecked is where our review focuses, so this saves us both time.",
-    options: [
-      { value: "coordinator", label: "A named owner for language access" },
-      { value: "notices", label: "Notices, in patients' languages, that interpreters are free" },
-      { value: "request", label: "How staff identify a language and request an interpreter" },
-      { value: "qualified", label: "A standard for who counts as a qualified interpreter" },
-      { value: "familyLimits", label: "Limits on using family members or minors to interpret" },
-      { value: "remote", label: "How phone and video interpreting are used" },
-      { value: "vitalDocs", label: "Which documents get translated" },
-      { value: "training", label: "Staff training on the plan" },
-      { value: "review", label: "A schedule to review and update the plan" },
-    ],
-  },
-  {
-    id: "plan.lastUpdated",
-    section: "plan",
-    type: "single_select",
-    required: true,
-    showIf: (a) => hasPlanDocument(a),
-    prompt: "When was the plan last reviewed or updated?",
-    whyItMatters:
-      "The Section 1557 rules were rewritten recently. A plan written before then usually needs updating, and we will flag what changed.",
-    options: [
-      { value: "recent", label: "Within the last year" },
-      { value: "mid", label: "One to three years ago" },
-      { value: "old", label: "More than three years ago" },
-      { value: "unsure", label: "I am not sure" },
-    ],
-  },
-  {
-    id: "plan.practiceGap",
-    section: "plan",
-    type: "long_text",
-    required: false,
-    reflective: true,
-    showIf: (a) => hasPlanDocument(a),
-    prompt: "Reading your own plan honestly, where does day-to-day practice drift from what it says?",
-    help: "One or two lines is plenty. There is no wrong answer.",
-    whyItMatters:
-      "A plan is only as good as what happens at the bedside. Naming the drift is where real alignment starts.",
-    placeholder: "For example: the plan says no family members, but after hours it still happens.",
-    maxLength: 2000,
-  },
-  {
-    id: "plan.educate",
-    section: "plan",
-    type: "info",
-    prompt: "About language access plans",
-    showIf: (a) => needsPlanHelp(a),
-    info: {
-      heading: "No plan yet? That is common, and fixable.",
-      intro:
-        "Many institutions we work with start right here. A language access plan is simply your written commitment to how a patient who needs an interpreter actually gets one.",
-      blocks: [
-        {
-          kind: "paragraph",
-          text: "At a minimum, a plan names the languages you serve, how staff request an interpreter, how you handle both spoken languages and American Sign Language, and how you avoid leaning on family members or untrained bilingual staff. Section 1557 expects this in writing.",
-        },
-        {
-          kind: "note",
-          text: "Not having one does not slow down your assessment. A few quick questions about how things work today will show us what alignment takes, and we can help from there.",
-        },
-      ],
-    },
-  },
-  {
-    id: "plan.todayAccess",
-    section: "plan",
-    type: "multi_select",
-    required: true,
-    showIf: (a) => needsPlanHelp(a),
-    prompt: "Today, when a patient needs an interpreter, what usually happens?",
-    help: "Check all that happen, even the ones you would rather change. An honest picture helps us most.",
-    whyItMatters:
-      "This is the honest baseline. Section 1557 expects qualified interpreters and discourages leaning on family or minors, so where you are now tells us how far there is to go.",
-    options: [
-      { value: "qualified", label: "We bring in a qualified or contracted interpreter" },
-      { value: "remote", label: "We use a phone or video interpreting line" },
-      { value: "bilingualStaff", label: "A bilingual staff member steps in" },
-      { value: "family", label: "A family member or friend interprets" },
-      { value: "minors", label: "Sometimes a child or minor interprets" },
-      { value: "adhoc", label: "It varies, with no set process" },
-    ],
-  },
-  {
-    id: "plan.todayNotices",
-    section: "plan",
-    type: "single_select",
-    required: true,
-    showIf: (a) => needsPlanHelp(a),
-    prompt: "Do patients see, in their own language, that interpreters are free?",
-    whyItMatters:
-      "Telling patients, in their language, that free interpreting exists is one of the most basic Section 1557 requirements, and one of the most often missed.",
-    options: [
-      { value: "posted", label: "Yes, posted and translated into our common languages" },
-      { value: "english", label: "We post something, but mostly in English" },
-      { value: "none", label: "Not really" },
-      { value: "unsure", label: "I am not sure" },
-    ],
-  },
-  {
-    id: "plan.barriers",
-    section: "plan",
-    type: "long_text",
-    required: false,
-    reflective: true,
-    showIf: (a) => needsPlanHelp(a),
-    prompt: "What has kept a written plan from happening so far?",
-    help: "Budget, staffing, unclear ownership, never being asked. Whatever it is.",
-    whyItMatters:
-      "Knowing the real constraint, not the textbook one, tells us what alignment will actually take here.",
-    placeholder: "A sentence is enough.",
-    maxLength: 2000,
-  },
-  {
-    id: "plan.help",
-    section: "plan",
-    type: "single_select",
-    required: true,
-    showIf: (a) => needsPlanHelp(a),
-    prompt: "Would it help to have AALB support your language access plan?",
-    whyItMatters:
-      "No pressure either way. This just tells us whether to follow up after your standard is set.",
-    options: [
-      { value: "yes", label: "Yes, we would like help with this" },
-      { value: "later", label: "Maybe later" },
-      { value: "no", label: "No thank you, we will handle it" },
-    ],
-  },
-
-  // -- Section: Who you serve (advisory, for the plan review) ----------------
   {
     id: "serve.footprint",
     section: "serve",
@@ -384,7 +173,7 @@ export const QUESTIONS: Phase0Question[] = [
     prompt: "Where does your institution provide care?",
     help: "Add every metro area you serve. Search by city or state. Health systems often span several, so add them all.",
     whyItMatters:
-      "This shows the languages your community actually speaks, which is what we review your language access plan against. It is advisory. The languages we assess your staff in come later, and are yours to choose.",
+      "This sets the language reality your standard has to cover. We use the actual communities you serve to build the right language rubrics, not a generic list.",
   },
   {
     id: "serve.reach",
@@ -393,7 +182,7 @@ export const QUESTIONS: Phase0Question[] = [
     required: true,
     prompt: "Beyond those areas, how far does your care reach?",
     whyItMatters:
-      "Telehealth and regional reach widen the community your plan has to account for, and add weight to video and phone interpreting.",
+      "Telehealth and regional reach change which languages appear and how much weight your standard puts on video and phone interpreting.",
     options: [
       { value: "local", label: "Those areas cover it" },
       { value: "regional", label: "Across our whole state or region" },
@@ -416,7 +205,7 @@ export const QUESTIONS: Phase0Question[] = [
           : "The languages your patients speak",
         intro: `Across the ${multi ? "areas" : "area"} you serve, about ${formatCount(
           agg.lepTotal
-        )} residents speak English less than very well. This is here to inform your language access plan, not to set what we assess.`,
+        )} residents speak English less than very well. These are the languages they speak most.`,
         blocks: [
           {
             kind: "stat",
@@ -435,11 +224,39 @@ export const QUESTIONS: Phase0Question[] = [
           },
           {
             kind: "note",
-            text: "This picture is advisory. It informs your language access plan and your obligations under Section 1557, which treats spoken languages and American Sign Language equally. It is not the list of languages we assess your staff in. You choose that next.",
+            text: "Section 1557 of the Affordable Care Act treats spoken languages and American Sign Language equally. A patient's right to a qualified interpreter does not depend on which language they speak.",
           },
         ],
       };
     },
+  },
+  {
+    id: "serve.languages",
+    section: "serve",
+    type: "multi_select",
+    widget: "language",
+    required: true,
+    prompt: "Which languages does your institution need interpreters for?",
+    help: "We have surfaced the most common languages where you serve. Add the ones you need, search the full list for any others, and include American Sign Language if you serve Deaf or hard-of-hearing patients.",
+    whyItMatters:
+      "We build a separate standard for each language you name. This is the exact list your interpreters will be assessed in, so name every language your patients actually need.",
+  },
+  {
+    id: "serve.asl",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    prompt: "How does your institution provide American Sign Language interpreting today?",
+    whyItMatters:
+      "ASL has its own credentialing path (RID) and its own quality risks, especially over video. How you deliver it shapes how we assess it.",
+    showIf: (a) => languageList(a).includes(ASL_VALUE),
+    options: [
+      { value: "onsite_rid", label: "On-site, RID-certified interpreters" },
+      { value: "vri", label: "Video remote interpreting (VRI)" },
+      { value: "both", label: "Both, depending on the situation" },
+      { value: "informal", label: "Informally, through staff or family" },
+      { value: "unsure", label: "We are not sure" },
+    ],
   },
   {
     id: "serve.volume",
@@ -454,57 +271,6 @@ export const QUESTIONS: Phase0Question[] = [
       { value: "daily", label: "About once a day" },
       { value: "many_daily", label: "Many times a day" },
       { value: "constant", label: "Constantly, across multiple departments" },
-    ],
-  },
-
-  // -- Section: What we assess (the contracted assessment scope) -------------
-  {
-    id: "assess.frame",
-    section: "assess",
-    type: "info",
-    prompt: "The languages we assess",
-    info: {
-      heading: "Now, the languages we assess",
-      intro:
-        "This is your assessment scope: the languages AALB tests your staff in. It is the part you contracted for, and it is yours to set.",
-      blocks: [
-        {
-          kind: "paragraph",
-          text: "We build a separate standard, a full rubric, for each language you name here. Your interpreters are assessed against those rubrics and nothing else. Name the languages your own staff actually interpret in.",
-        },
-        {
-          kind: "note",
-          text: "This is deliberately separate from your community's language picture. Your community may speak many languages. You decide which ones your staff are assessed in. Adding a language expands the assessment, so choose the ones that match the staff you want verified.",
-        },
-      ],
-    },
-  },
-  {
-    id: "assess.languages",
-    section: "assess",
-    type: "multi_select",
-    widget: "language",
-    required: true,
-    prompt: "Which languages should AALB assess your staff in?",
-    help: "Add each language your staff interpret in and that you want verified. We have surfaced the common languages where you serve as quick adds. Include American Sign Language if your staff interpret for Deaf or hard-of-hearing patients.",
-    whyItMatters:
-      "Each language becomes its own rubric in your standard. This is the exact list your interpreters are assessed in, so it should match the staff and languages you are putting forward, not every language in your community.",
-  },
-  {
-    id: "assess.asl",
-    section: "assess",
-    type: "single_select",
-    required: true,
-    prompt: "How does your institution provide American Sign Language interpreting today?",
-    whyItMatters:
-      "ASL has its own credentialing path (RID) and its own quality risks, especially over video. How you deliver it shapes how we assess it.",
-    showIf: (a) => assessedLanguages(a).includes(ASL_VALUE),
-    options: [
-      { value: "onsite_rid", label: "On-site, RID-certified interpreters" },
-      { value: "vri", label: "Video remote interpreting (VRI)" },
-      { value: "both", label: "Both, depending on the situation" },
-      { value: "informal", label: "Informally, through staff or family" },
-      { value: "unsure", label: "We are not sure" },
     ],
   },
 ];

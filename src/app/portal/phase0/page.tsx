@@ -38,29 +38,12 @@ export default async function Phase0Page() {
 
   const initialAnswers = (org.phase0Answers ?? {}) as Phase0Answers;
 
-  // The most recent language access plan on file, if any, so the wizard can show
-  // "Received: ..." on the plan step across reloads (it may have been uploaded
-  // earlier, or by a colleague via an emailed link).
-  const planDoc = await withDbRetry("portal.phase0.plandoc", () =>
-    prisma.planDocument.findFirst({
-      where: { organizationId: user.organizationId as string },
-      orderBy: { createdAt: "desc" },
-      select: { filename: true },
-    })
-  );
-
-  return (
-    <Phase0Wizard
-      orgName={org.name}
-      initialAnswers={initialAnswers}
-      planDoc={planDoc?.filename ?? null}
-    />
-  );
+  return <Phase0Wizard orgName={org.name} initialAnswers={initialAnswers} />;
 }
 
 function SubmittedView({ orgName }: { orgName: string }) {
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50">
+    <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
         <span className="font-display text-lg font-semibold tracking-tight text-ink">
           AALB

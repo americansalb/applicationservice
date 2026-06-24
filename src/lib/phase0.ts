@@ -204,8 +204,79 @@ export const US_STATES: Phase0Option[] = [
   { value: "WY", label: "Wyoming" },
 ];
 
+// Section "What you're aiming for": AALB presents the scale; the institution
+// picks its target on it. These three lists back both the questionnaire (the
+// goal.* questions below) and the developer pre-config editor, so the seedable
+// values and the rendered options never drift. phase0Config.ts imports them to
+// build its validation sets; that one-way import (config -> engine) is why the
+// lists live here, not there.
+export const AMBITION_OPTIONS: Phase0Option[] = [
+  {
+    value: "compliance",
+    label: "Meet the standard required of us",
+    hint: "A solid, defensible program that meets the rules that apply to you.",
+  },
+  {
+    value: "beyond",
+    label: "Go a step beyond the minimum",
+    hint: "Raise the bar past the baseline where it matters most for care.",
+  },
+  {
+    value: "excellence",
+    label: "Build a center of excellence",
+    hint: "The highest standard, a model others measure against.",
+  },
+];
+
+export const CERT_GOAL_OPTIONS: Phase0Option[] = [
+  {
+    value: "required",
+    label: "Yes, we want our interpreters nationally certified",
+    hint: "Hold it, or actively work toward it.",
+  },
+  {
+    value: "valued",
+    label: "A plus, not a requirement",
+    hint: "We would value it but will not require it of everyone.",
+  },
+  {
+    value: "no",
+    label: "Not a goal for us",
+    hint: "Our own standard is enough for what we need.",
+  },
+  {
+    value: "advise",
+    label: "Not sure, advise us",
+    hint: "Help us decide whether it fits our goals.",
+  },
+];
+
+export const TRAINING_GOAL_OPTIONS: Phase0Option[] = [
+  {
+    value: "baseline",
+    label: "Everyone meets a recognized training baseline",
+    hint: "At least the standard 40-hour medical interpreter training.",
+  },
+  {
+    value: "targeted",
+    label: "Training where the assessment finds gaps",
+    hint: "Bring specific people up as results show the need.",
+  },
+  {
+    value: "measure",
+    label: "Just measure the training they already have",
+    hint: "Tell us where our people stand; we will handle training ourselves.",
+  },
+  {
+    value: "advise",
+    label: "Not sure, advise us",
+    hint: "Help us set the right training expectation.",
+  },
+];
+
 export const SECTIONS: Phase0Section[] = [
   { id: "start", title: "Getting started" },
+  { id: "goal", title: "What you're aiming for" },
   { id: "plan", title: "Your language access policies" },
   { id: "serve", title: "Who you serve" },
 ];
@@ -263,6 +334,69 @@ export const QUESTIONS: Phase0Question[] = [
         ],
       };
     },
+  },
+  // -- Section: What you're aiming for ---------------------------------------
+  // AALB was hired to tell the institution the scale and where their people
+  // land on it. goal.scale presents that scale; the next three capture the
+  // institution's target on it (their answer, not ours). Each teaches as it
+  // asks, and every option is framed so the honest answer is never the lesser
+  // one.
+  {
+    id: "goal.scale",
+    section: "goal",
+    type: "info",
+    prompt: "The scale we measure against",
+    dynamicContent: (_a, ctx) => ({
+      heading: "The scale we measure against",
+      intro: `Before you set your goal, here is the scale every interpreter at ${ctx.orgName} is measured on, and where we draw the line.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "We rate interpreting proficiency on a single scale, and our floor for certification is 3+. An interpreter at that level carries a complex clinical conversation accurately and completely, in both directions, under real conditions, without simplifying the medicine or leaving anything out. That is the floor for our stamp of approval.",
+        },
+        {
+          kind: "paragraph",
+          text: "Above that floor, two things separate a strong language access program from a great one: whether your interpreters hold national certification, and how much training stands behind them. The next three questions ask how far you want to take each.",
+        },
+        {
+          kind: "note",
+          text: "You set the target. We measure your interpreters and tell you exactly where they stand against it.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "goal.ambition",
+    section: "goal",
+    type: "single_select",
+    required: true,
+    prompt: "What are you aiming for with language access?",
+    help: "There is no wrong answer. Meeting the standard required of you, done well, is a real achievement. Tell us the truth and we calibrate to it.",
+    whyItMatters:
+      "Your answer sets how high we hold the bar and how we report results back to you. It is the difference between meeting the requirement and setting the example.",
+    options: AMBITION_OPTIONS,
+  },
+  {
+    id: "goal.certification",
+    section: "goal",
+    type: "single_select",
+    required: true,
+    prompt: "Do you want your interpreters to hold national certification?",
+    help: "National certification is a credential from a recognized board, earned by exam, that sits above an internal assessment. For spoken languages that means a CHI or CoreCHI from CCHI, or a CMI from the National Board of Certification for Medical Interpreters. For American Sign Language it means the NIC from the Registry of Interpreters for the Deaf.",
+    whyItMatters:
+      "Certification is portable and verified by someone other than us. It signals rigor to patients, auditors, and regulators, and it is a clear step beyond an internal benchmark.",
+    options: CERT_GOAL_OPTIONS,
+  },
+  {
+    id: "goal.training",
+    section: "goal",
+    type: "single_select",
+    required: true,
+    prompt: "How much interpreter training do you want behind your program?",
+    help: "The recognized baseline in healthcare is 40 hours of medical interpreter training: ethics, the interpreter's role, medical terminology, and managing a live encounter. It is what turns a bilingual person into an interpreter.",
+    whyItMatters:
+      "Speaking two languages is not the same as interpreting between them under pressure. Training is what makes interpreting accurate and safe, so how much you want shapes the standard we set.",
+    options: TRAINING_GOAL_OPTIONS,
   },
   // -- Section: Your language access policies --------------------------------
   {

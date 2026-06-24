@@ -5,7 +5,13 @@
 // 12_org_phase0_config). It is never written through the manager's answer-save
 // path: only the developer-gated routes (invitations, preconfigure) write it.
 
-import { US_STATES, ASL_VALUE } from "./phase0";
+import {
+  US_STATES,
+  ASL_VALUE,
+  AMBITION_OPTIONS,
+  CERT_GOAL_OPTIONS,
+  TRAINING_GOAL_OPTIONS,
+} from "./phase0";
 import type { Phase0Answers, Phase0Option } from "./phase0";
 import { LANGUAGE_CATALOG, getMetroProfile } from "./metroData";
 
@@ -16,6 +22,12 @@ export type Phase0Config = {
   states?: string[]; // US_STATES codes, e.g. ["NJ"]
   languages?: string[]; // catalog names + ASL_VALUE, e.g. ["Spanish", "American Sign Language"]
   metros?: string[]; // metro slugs
+  // Goal: the institution's target on AALB's scale (see the goal.* questions in
+  // phase0.ts). Values match the goal option arrays exactly, so a seeded answer
+  // is valid as-is and pre-fills the matching goal.* question.
+  ambition?: string; // AMBITION_OPTIONS value
+  certification?: string; // CERT_GOAL_OPTIONS value
+  training?: string; // TRAINING_GOAL_OPTIONS value
 };
 
 // Sector: only healthcare is built today. The list lives here so the editor and
@@ -59,6 +71,9 @@ export function seedAnswersFromConfig(
     out["serve.languages"] = [...config.languages];
   if (config.metros && config.metros.length > 0)
     out["serve.footprint"] = [...config.metros];
+  if (config.ambition) out["goal.ambition"] = config.ambition;
+  if (config.certification) out["goal.certification"] = config.certification;
+  if (config.training) out["goal.training"] = config.training;
   return out;
 }
 
@@ -72,6 +87,9 @@ const LANGUAGE_SET = new Set<string>([ASL_VALUE, ...LANGUAGE_CATALOG]);
 const SECTOR_VALUES = new Set(SECTOR_OPTIONS.map((o) => o.value));
 const ORG_TYPE_VALUES = new Set(ORG_TYPE_OPTIONS.map((o) => o.value));
 const FUNDING_VALUES = new Set(["yes", "no", "unsure"]);
+const AMBITION_VALUES = new Set(AMBITION_OPTIONS.map((o) => o.value));
+const CERT_VALUES = new Set(CERT_GOAL_OPTIONS.map((o) => o.value));
+const TRAINING_VALUES = new Set(TRAINING_GOAL_OPTIONS.map((o) => o.value));
 const MAX_LIST = 200;
 
 function cleanList(v: unknown, allowed: Set<string>): string[] {
@@ -99,6 +117,16 @@ export function sanitizePhase0Config(input: unknown): Phase0Config {
     FUNDING_VALUES.has(obj.federalFunding)
   )
     out.federalFunding = obj.federalFunding as "yes" | "no" | "unsure";
+
+  if (typeof obj.ambition === "string" && AMBITION_VALUES.has(obj.ambition))
+    out.ambition = obj.ambition;
+  if (
+    typeof obj.certification === "string" &&
+    CERT_VALUES.has(obj.certification)
+  )
+    out.certification = obj.certification;
+  if (typeof obj.training === "string" && TRAINING_VALUES.has(obj.training))
+    out.training = obj.training;
 
   const states = cleanList(obj.states, STATE_CODES);
   if (states.length > 0) out.states = states;

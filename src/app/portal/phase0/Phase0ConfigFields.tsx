@@ -7,7 +7,12 @@
 // valid when it seeds the manager's questionnaire.
 
 import { StatePicker, MetroPicker, LanguagePicker } from "./pickers";
-import { US_STATES } from "@/lib/phase0";
+import {
+  US_STATES,
+  AMBITION_OPTIONS,
+  CERT_GOAL_OPTIONS,
+  TRAINING_GOAL_OPTIONS,
+} from "@/lib/phase0";
 import {
   SECTOR_OPTIONS,
   ORG_TYPE_OPTIONS,
@@ -141,6 +146,62 @@ export default function Phase0ConfigFields({
           }
         />
       </Field>
+
+      <div className="border-t border-zinc-200/70 pt-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+          Goal
+        </p>
+        <p className="mt-0.5 mb-3 text-xs text-ink-faint">
+          What they are aiming for on our scale. Pre-fills the goal questions;
+          the manager can change them.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Ambition">
+            <select
+              value={value.ambition ?? ""}
+              onChange={(e) => update({ ambition: e.target.value || undefined })}
+              className={selectClass}
+            >
+              <option value="">Not set</option>
+              {AMBITION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="National certification">
+            <select
+              value={value.certification ?? ""}
+              onChange={(e) =>
+                update({ certification: e.target.value || undefined })
+              }
+              className={selectClass}
+            >
+              <option value="">Not set</option>
+              {CERT_GOAL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Training">
+            <select
+              value={value.training ?? ""}
+              onChange={(e) => update({ training: e.target.value || undefined })}
+              className={selectClass}
+            >
+              <option value="">Not set</option>
+              {TRAINING_GOAL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </div>
     </div>
   );
 }

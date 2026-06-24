@@ -325,6 +325,31 @@ export default function Phase0Wizard({
         />
       );
     }
+    if (q.type === "multi_select" && q.widget === "states") {
+      const opts = resolveOptions(q, answers, ctx);
+      const arr = asArr(answers[q.id]);
+      return (
+        <div className="flex flex-wrap gap-2">
+          {opts.map((o) => {
+            const on = arr.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => toggleMulti(q.id, o.value)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                  on
+                    ? "border-teal-600 bg-teal-600 text-white"
+                    : "border-zinc-200 bg-white text-ink-soft hover:border-teal-500/60"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
     if (q.type === "multi_select" && q.widget === "metro") {
       return (
         <MetroPicker

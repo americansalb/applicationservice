@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     await sendEmail(
       email,
-      `Upload ${org.name}'s language access plan`,
+      `Upload ${org.name}'s language access policies`,
       planUploadEmailHtml(opts),
       { text: planUploadEmailText(opts) }
     );

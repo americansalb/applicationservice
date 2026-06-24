@@ -53,10 +53,10 @@ export default function UploadForm({
           <Check className="h-7 w-7" strokeWidth={2.25} />
         </span>
         <h1 className="mt-5 font-display text-2xl font-semibold tracking-tight text-ink">
-          Thank you. The plan was received.
+          Thank you. Your policies were received.
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-          AALB now has {orgName}&apos;s language access plan for review. You can
+          AALB now has {orgName}&apos;s language access policies for review. You can
           close this page.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function UploadForm({
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-        Upload {orgName}&apos;s language access plan
+        Upload {orgName}&apos;s language access policies
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
         AALB reviews this as part of {orgName}&apos;s standards. A PDF, Word
@@ -125,7 +125,7 @@ export default function UploadForm({
           disabled={state === "uploading" || !file}
           className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950 disabled:opacity-60"
         >
-          {state === "uploading" ? "Uploading..." : "Upload the plan"}
+          {state === "uploading" ? "Uploading..." : "Upload policies"}
         </button>
       </div>
     </div>

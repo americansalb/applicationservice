@@ -326,28 +326,13 @@ export default function Phase0Wizard({
       );
     }
     if (q.type === "multi_select" && q.widget === "states") {
-      const opts = resolveOptions(q, answers, ctx);
-      const arr = asArr(answers[q.id]);
       return (
-        <div className="flex flex-wrap gap-2">
-          {opts.map((o) => {
-            const on = arr.includes(o.value);
-            return (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => toggleMulti(q.id, o.value)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                  on
-                    ? "border-teal-600 bg-teal-600 text-white"
-                    : "border-zinc-200 bg-white text-ink-soft hover:border-teal-500/60"
-                }`}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
+        <StatePicker
+          options={resolveOptions(q, answers, ctx)}
+          selected={asArr(answers[q.id])}
+          onAdd={(v) => addMulti(q.id, v)}
+          onRemove={(v) => removeMulti(q.id, v)}
+        />
       );
     }
     if (q.type === "multi_select" && q.widget === "metro") {
@@ -464,6 +449,85 @@ export default function Phase0Wizard({
     }
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Searchable state picker (legal-scope question).
+// ---------------------------------------------------------------------------
+
+function StatePicker({
+  options,
+  selected,
+  onAdd,
+  onRemove,
+}: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onAdd: (v: string) => void;
+  onRemove: (v: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const sel = new Set(selected);
+  const labelFor = (v: string) =>
+    options.find((o) => o.value === v)?.label ?? v;
+  const query = q.trim().toLowerCase();
+  const results = options
+    .filter((o) => !sel.has(o.value))
+    .filter((o) => !query || o.label.toLowerCase().includes(query));
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {selected.map((v) => (
+            <span
+              key={v}
+              className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 py-1 pl-3 pr-1.5 text-sm font-medium text-teal-900 ring-1 ring-inset ring-teal-700/15"
+            >
+              {labelFor(v)}
+              <button
+                onClick={() => onRemove(v)}
+                className="rounded-full p-0.5 text-teal-700/70 transition hover:bg-teal-700/10 hover:text-teal-900"
+                aria-label={`Remove ${labelFor(v)}`}
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search states"
+          className="w-full rounded-xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+        />
+      </div>
+
+      <div className="mt-1.5 max-h-72 space-y-1.5 overflow-auto">
+        {results.map((o) => (
+          <button
+            key={o.value}
+            onClick={() => {
+              onAdd(o.value);
+              setQ("");
+            }}
+            className="flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-left transition hover:border-teal-500/60 hover:bg-zinc-50"
+          >
+            <span className="text-[15px] text-ink">{o.label}</span>
+            <Plus className="h-4 w-4 text-teal-700" strokeWidth={2} />
+          </button>
+        ))}
+        {results.length === 0 && (
+          <p className="px-1 py-2 text-sm text-ink-faint">No match.</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -771,6 +835,8 @@ function InfoBlock({ block }: { block: Phase0InfoBlock }) {
           {block.text}
         </div>
       );
+    case "fineprint":
+      return <p className="text-xs leading-relaxed text-ink-faint">{block.text}</p>;
     case "stat":
       return (
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-card">

@@ -46,7 +46,7 @@ export type Phase0QuestionType =
 
 // A multi_select can render as plain option cards (default) or as a searchable
 // picker for one of the large catalogs.
-export type Phase0Widget = "metro" | "language";
+export type Phase0Widget = "metro" | "language" | "plan";
 
 export type Phase0InfoBlock =
   | { kind: "paragraph"; text: string }
@@ -225,10 +225,11 @@ export const QUESTIONS: Phase0Question[] = [
     id: "plan.link",
     section: "plan",
     type: "short_text",
+    widget: "plan",
     required: false,
     showIf: (a) => hasPlanDocument(a),
-    prompt: "Where can AALB find your plan?",
-    help: "If your plan lives online, an intranet page, a shared drive, or a PDF link, paste the link here. If it is an internal document, leave this blank. AALB will request the file when we review your responses.",
+    prompt: "Share your language access plan with AALB",
+    help: "Upload the document now, email an upload link to a colleague, or paste a link if it lives online. This is optional here. If it is easier later, AALB will request it during review.",
     whyItMatters:
       "We review the actual plan, not a summary, so your standard reflects what you have already committed to.",
     placeholder: "https://",

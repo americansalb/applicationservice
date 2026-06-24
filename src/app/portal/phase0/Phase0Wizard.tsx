@@ -24,15 +24,18 @@ import {
   getMetroProfile,
   LANGUAGE_CATALOG,
 } from "@/lib/metroData";
+import PlanCollect from "./PlanCollect";
 
 const AUTOSAVE_DEBOUNCE_MS = 1200;
 
 export default function Phase0Wizard({
   orgName,
   initialAnswers,
+  planDoc = null,
 }: {
   orgName: string;
   initialAnswers: Phase0Answers;
+  planDoc?: string | null;
 }) {
   const router = useRouter();
   const ctx = useMemo(() => ({ orgName }), [orgName]);
@@ -311,6 +314,16 @@ export default function Phase0Wizard({
   }
 
   function renderControl(q: Phase0Question) {
+    if (q.widget === "plan") {
+      return (
+        <PlanCollect
+          orgName={orgName}
+          initialDoc={planDoc}
+          linkValue={(answers[q.id] as string) ?? ""}
+          onLinkChange={(v) => onText(q, v)}
+        />
+      );
+    }
     if (q.type === "multi_select" && q.widget === "metro") {
       return (
         <MetroPicker

@@ -227,6 +227,7 @@ model Organization {
 
   members     AppUser[]
   invitations Invitation[]
+  planDocuments PlanDocument[]
 
   @@map("app_organization")
 }
@@ -251,4 +252,25 @@ model Invitation {
   @@index([organizationId])
   @@index([email])
   @@map("app_invitation")
+}
+
+// An institution's written language access plan, collected during Phase 0 so AALB
+// can review it (Section 1557 / Title VI / ADA). The file is stored in the
+// database as bytes (mirroring partners_file), keyed to the organization. It can
+// arrive from the manager in the wizard or from a colleague via an emailed,
+// token-gated upload link. This is the plan we review, never the assessment scope.
+model PlanDocument {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  filename       String
+  mimeType       String
+  sizeBytes      Int
+  content        Bytes
+  uploadedVia    String // "manager" | "link"
+  uploaderName   String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("app_plan_document")
 }

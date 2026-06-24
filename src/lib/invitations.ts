@@ -161,6 +161,114 @@ export function inviteEmailText(opts: InviteEmailOpts): string {
   ].join("\n");
 }
 
+type PlanUploadEmailOpts = {
+  orgName: string;
+  url: string;
+  // The manager who sent the link (so a colleague knows who asked).
+  inviterName?: string;
+  // How long the link stays valid, in days (kept in sync with planUpload.ts).
+  ttlDays: number;
+};
+
+// The email that carries a token-gated link for uploading an institution's
+// language access plan. Same email-client-safe construction as the invitation:
+// table layout, inline styles, typographic wordmark (no remote image).
+export function planUploadEmailHtml(opts: PlanUploadEmailOpts): string {
+  const { orgName, url, inviterName, ttlDays } = opts;
+  const org = escapeHtml(orgName);
+  const safeUrl = escapeAttr(url);
+  const intro = inviterName
+    ? `${escapeHtml(inviterName)} has asked you to share`
+    : "You have been asked to share";
+  const year = new Date().getFullYear();
+  const line = `${intro} <strong style="color:${INK};">${org}</strong>'s written language access plan with AALB. It is part of your standards review, and it takes one upload.`;
+  const preheader = `${intro} ${orgName}'s language access plan with AALB.`;
+
+  const header = `<div style="font-family:${FONT_SERIF};font-size:30px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;line-height:1;">AALB</div>
+              <div style="font-family:${FONT_SANS};font-size:11px;font-weight:600;letter-spacing:0.24em;text-transform:uppercase;color:${TEAL_200};margin-top:9px;">Evaluation Platform</div>`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<meta name="color-scheme" content="light only" />
+<title>Upload your language access plan</title>
+</head>
+<body style="margin:0;padding:0;background:${SAND};-webkit-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${SAND};">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+          <tr>
+            <td style="background:${TEAL_950};border-radius:16px 16px 0 0;padding:36px 40px;text-align:center;">
+              ${header}
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:40px 40px 32px;">
+              <h1 style="margin:0 0 18px;font-family:${FONT_SERIF};font-size:25px;line-height:1.25;color:${INK};font-weight:600;">Upload your language access plan</h1>
+              <p style="margin:0 0 10px;font-family:${FONT_SANS};font-size:16px;line-height:1.65;color:${INK_SOFT};">
+                ${line}
+              </p>
+              <p style="margin:0 0 30px;font-family:${FONT_SANS};font-size:15px;line-height:1.65;color:${INK_MUTED};">
+                No account or sign in needed. PDF, Word, or an image is fine.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="${TEAL_BTN}" style="border-radius:10px;">
+                    <a href="${safeUrl}" target="_blank" style="display:inline-block;padding:15px 30px;font-family:${FONT_SANS};font-size:16px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:10px;">Upload the plan &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:30px 0 0;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_FAINT};">
+                This link expires in ${ttlDays} days. If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin:8px 0 0;font-family:${FONT_SANS};font-size:13px;line-height:1.6;word-break:break-all;">
+                <a href="${safeUrl}" target="_blank" style="color:${TEAL_BTN};text-decoration:underline;">${escapeHtml(url)}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border-radius:0 0 16px 16px;border-top:1px solid ${HAIRLINE};padding:24px 40px 28px;">
+              <p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_FAINT};">
+                You're receiving this because someone at ${org} asked you to upload their language access plan. If you weren't expecting it, you can safely ignore this email.
+              </p>
+              <p style="margin:12px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:#b8b3a6;">
+                &copy; ${year} Americans Against Language Barriers
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+export function planUploadEmailText(opts: PlanUploadEmailOpts): string {
+  const { orgName, url, inviterName, ttlDays } = opts;
+  const intro = inviterName
+    ? `${inviterName} has asked you to share`
+    : "You have been asked to share";
+  return [
+    "AALB Evaluation Platform",
+    "",
+    `${intro} ${orgName}'s written language access plan with AALB.`,
+    "",
+    "Upload it here (no account or sign in needed):",
+    url,
+    "",
+    `This link expires in ${ttlDays} days.`,
+    "If you weren't expecting this, you can ignore this email.",
+    "",
+    `© ${new Date().getFullYear()} Americans Against Language Barriers`,
+  ].join("\n");
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

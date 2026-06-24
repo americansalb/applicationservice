@@ -38,7 +38,24 @@ export default async function Phase0Page() {
 
   const initialAnswers = (org.phase0Answers ?? {}) as Phase0Answers;
 
-  return <Phase0Wizard orgName={org.name} initialAnswers={initialAnswers} />;
+  // The most recent language access plan on file, if any, so the wizard can show
+  // "Received: ..." on the plan step across reloads (it may have been uploaded
+  // earlier, or by a colleague via an emailed link).
+  const planDoc = await withDbRetry("portal.phase0.plandoc", () =>
+    prisma.planDocument.findFirst({
+      where: { organizationId: user.organizationId as string },
+      orderBy: { createdAt: "desc" },
+      select: { filename: true },
+    })
+  );
+
+  return (
+    <Phase0Wizard
+      orgName={org.name}
+      initialAnswers={initialAnswers}
+      planDoc={planDoc?.filename ?? null}
+    />
+  );
 }
 
 function SubmittedView({ orgName }: { orgName: string }) {

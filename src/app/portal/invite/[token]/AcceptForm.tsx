@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, User } from "lucide-react";
 
 const inputClass =
-  "block w-full rounded-lg border border-sand-300 bg-white py-2.5 pl-10 pr-3.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
+  "block w-full rounded-lg border border-zinc-300 bg-white py-2.5 pl-10 pr-3.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
 
 export default function AcceptForm({
   token,
@@ -77,7 +77,7 @@ export default function AcceptForm({
         )}{" "}
         Set a password to finish creating your account.
       </p>
-      <p className="mt-3 rounded-lg bg-sand-50 px-3 py-2 text-sm text-ink-soft ring-1 ring-inset ring-sand-200">
+      <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-ink-soft ring-1 ring-inset ring-zinc-200">
         {email}
       </p>
 

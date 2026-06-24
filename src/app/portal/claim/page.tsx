@@ -28,12 +28,12 @@ export default async function ClaimPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sand-50 to-sand-100/60 px-6 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-zinc-50 to-zinc-100/60 px-6 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
           <LogoImage tone="dark" className="h-12" />
         </div>
-        <div className="rounded-2xl border border-sand-200/80 bg-white p-8 shadow-raised sm:p-10">
+        <div className="rounded-2xl border border-zinc-200/80 bg-white p-8 shadow-raised sm:p-10">
           {claimable ? (
             <ClaimForm email={DEV_BOOTSTRAP_EMAIL} />
           ) : (

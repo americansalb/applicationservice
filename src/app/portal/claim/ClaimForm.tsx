@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { KeyRound, Lock } from "lucide-react";
 
 const inputClass =
-  "block w-full rounded-lg border border-sand-300 bg-white py-2.5 pl-10 pr-3.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
+  "block w-full rounded-lg border border-zinc-300 bg-white py-2.5 pl-10 pr-3.5 text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
 
 export default function ClaimForm({ email }: { email: string }) {
   const router = useRouter();

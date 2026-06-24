@@ -102,7 +102,7 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
       </div>
 
       {/* Inline summary — figures, not boxes */}
-      <div className="mb-8 flex flex-wrap items-end gap-x-10 gap-y-4 border-b border-sand-200/70 pb-6">
+      <div className="mb-8 flex flex-wrap items-end gap-x-10 gap-y-4 border-b border-zinc-200/70 pb-6">
         <Figure value={orgs.length} label="Institutions" />
         <Figure value={candidates} label="Interpreters" />
         <Figure value={0} label="Verified" />
@@ -132,7 +132,7 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
               return (
                 <div
                   key={o.id}
-                  className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-sand-200/80 bg-white px-5 py-4 shadow-card"
+                  className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 shadow-card"
                 >
                   <Avatar name={o.name} tone="clay" />
                   <div className="min-w-[12rem] flex-1">
@@ -166,9 +166,9 @@ export default async function DeveloperDashboard({ user }: { user: SessionUser }
             {invites.map((i) => (
               <div
                 key={i.id}
-                className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-dashed border-sand-300 bg-white/60 px-5 py-3.5 text-sm"
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-dashed border-zinc-300 bg-white/60 px-5 py-3.5 text-sm"
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sand-100 text-ink-faint">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-ink-faint">
                   <Mail className="h-4 w-4" strokeWidth={1.75} />
                 </span>
                 <span className="min-w-[12rem] flex-1 font-medium text-ink">
@@ -201,13 +201,13 @@ function Phase0Chip({ status }: { status: string }) {
   }
   if (status === "in_progress") {
     return (
-      <span className="inline-flex items-center rounded-full bg-sand-100 px-2.5 py-1 text-xs font-medium text-ink-soft ring-1 ring-inset ring-sand-300">
+      <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-ink-soft ring-1 ring-inset ring-zinc-300">
         Phase 0 in progress
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-sand-100 px-2.5 py-1 text-xs font-medium text-ink-faint ring-1 ring-inset ring-sand-300">
+    <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-ink-faint ring-1 ring-inset ring-zinc-300">
       Awaiting standards
     </span>
   );

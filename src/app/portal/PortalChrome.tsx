@@ -153,7 +153,7 @@ export default function PortalChrome({
   );
 
   return (
-    <div className="min-h-screen bg-sand-50 lg:flex">
+    <div className="min-h-screen bg-zinc-50 lg:flex">
       {/* Mobile bar */}
       <div className="flex h-14 items-center justify-between bg-teal-950 px-4 lg:hidden">
         <LogoImage className="h-9" />

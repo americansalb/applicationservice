@@ -124,7 +124,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
           </div>
 
           {/* Live team track */}
-          <section className="relative mb-8 overflow-hidden rounded-3xl border border-sand-200/80 bg-white shadow-raised">
+          <section className="relative mb-8 overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-raised">
             <div className="relative flex items-center justify-between px-7 pt-6">
               <div>
                 <h2 className="font-display text-base font-medium text-ink">
@@ -261,7 +261,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
           )}
 
           {/* Team waiting — locked track */}
-          <section className="relative mb-8 overflow-hidden rounded-3xl border border-sand-200/80 bg-white shadow-card">
+          <section className="relative mb-8 overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-2 px-7 pt-5">
               <div>
                 <h2 className="font-display text-base font-medium text-ink-soft">
@@ -318,7 +318,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
           {team.map((p) => (
             <div
               key={p.id}
-              className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-sand-200/80 bg-white px-5 py-4 shadow-card"
+              className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 shadow-card"
             >
               <Avatar name={p.name} />
               <div className="min-w-[12rem] flex-1">
@@ -350,9 +350,9 @@ function PendingInvites({
       {invites.map((i) => (
         <div
           key={i.id}
-          className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-sand-300 bg-white/60 px-5 py-3.5 text-sm"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-white/60 px-5 py-3.5 text-sm"
         >
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sand-100 text-ink-faint">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-ink-faint">
             <Mail className="h-4 w-4" strokeWidth={1.75} />
           </span>
           <span className="flex-1 text-ink-soft">

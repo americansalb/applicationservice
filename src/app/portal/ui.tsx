@@ -80,7 +80,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-sand-200/80 bg-white shadow-card ${className}`}
+      className={`rounded-2xl border border-zinc-200/80 bg-white shadow-card ${className}`}
     >
       {children}
     </div>
@@ -97,7 +97,7 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-sand-200/70 px-6 py-4">
+    <div className="flex items-center justify-between gap-4 border-b border-zinc-200/70 px-6 py-4">
       <div>
         <h3 className="font-display text-base font-medium text-ink">{title}</h3>
         {hint && <p className="mt-0.5 text-xs text-ink-faint">{hint}</p>}
@@ -202,7 +202,7 @@ export function RoleBadge({ role }: { role: AppRole }) {
   const styles: Record<AppRole, string> = {
     DEVELOPER: "bg-teal-50 text-teal-800 ring-teal-700/15",
     MANAGER: "bg-clay-100 text-clay-700 ring-clay-600/20",
-    PROFESSIONAL: "bg-sand-100 text-ink-soft ring-sand-300",
+    PROFESSIONAL: "bg-zinc-100 text-ink-soft ring-zinc-300",
   };
   const labels: Record<AppRole, string> = {
     DEVELOPER: "Developer",
@@ -226,7 +226,7 @@ export function StatusTag({
   tone?: "neutral" | "pending" | "teal";
 }) {
   const tones = {
-    neutral: "bg-sand-100 text-ink-faint ring-sand-300",
+    neutral: "bg-zinc-100 text-ink-faint ring-zinc-300",
     pending: "bg-clay-100 text-clay-700 ring-clay-600/20",
     teal: "bg-teal-50 text-teal-800 ring-teal-700/15",
   } as const;
@@ -255,7 +255,7 @@ export function Planned({
     <Card className="p-6">
       <div className="flex items-start gap-3">
         {icon && (
-          <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-sand-100 text-ink-faint">
+          <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-ink-faint">
             {icon}
           </span>
         )}
@@ -264,7 +264,7 @@ export function Planned({
             <h3 className="font-display text-base font-medium text-ink">
               {title}
             </h3>
-            <span className="rounded-full bg-sand-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint ring-1 ring-inset ring-sand-300">
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint ring-1 ring-inset ring-zinc-300">
               Planned
             </span>
           </div>
@@ -296,7 +296,7 @@ export function CriteriaDots({
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}
-          className={`h-1.5 w-4 rounded-full ${i < done ? "bg-teal-600" : "bg-sand-300"}`}
+          className={`h-1.5 w-4 rounded-full ${i < done ? "bg-teal-600" : "bg-zinc-300"}`}
         />
       ))}
     </div>
@@ -313,7 +313,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
       {icon && (
-        <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-sand-100 text-ink-faint ring-1 ring-inset ring-sand-200">
+        <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-zinc-100 text-ink-faint ring-1 ring-inset ring-zinc-200">
           {icon}
         </span>
       )}
@@ -356,7 +356,7 @@ export function JourneyTrack({
 }) {
   return (
     <div className={`relative px-6 pb-4 pt-12 sm:px-10 ${dim ? "opacity-55" : ""}`}>
-      <div className="absolute left-[44px] right-[64px] top-[78px] h-[3px] rounded-full bg-sand-300 sm:left-[60px] sm:right-[80px]" />
+      <div className="absolute left-[44px] right-[64px] top-[78px] h-[3px] rounded-full bg-zinc-300 sm:left-[60px] sm:right-[80px]" />
       <div className="relative flex items-start justify-between">
         {ASSESSMENT_STEPS.map((s, i) => {
           const done = i < current;
@@ -386,7 +386,7 @@ export function JourneyTrack({
                     ? "bg-teal-600 text-white ring-teal-600"
                     : isCurrent
                       ? "bg-teal-600 text-white ring-4 ring-white"
-                      : "bg-white text-ink-faint ring-sand-300"
+                      : "bg-white text-ink-faint ring-zinc-300"
                 }`}
               >
                 {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : s.code}
@@ -420,7 +420,7 @@ export function JourneyTrack({
 // A small lock chip used on awaiting/gated sections.
 export function LockChip({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-sand-100 px-2.5 py-1 text-xs font-medium text-ink-faint ring-1 ring-inset ring-sand-300">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-ink-faint ring-1 ring-inset ring-zinc-300">
       <Lock className="h-3 w-3" strokeWidth={2} />
       {children}
     </span>

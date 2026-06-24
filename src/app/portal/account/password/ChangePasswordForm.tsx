@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputClass =
-  "mt-1.5 block w-full rounded-lg border border-sand-300 bg-white px-3.5 py-2.5 text-ink shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
+  "mt-1.5 block w-full rounded-lg border border-zinc-300 bg-white px-3.5 py-2.5 text-ink shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
 
 export default function ChangePasswordForm({
   mustChange,
@@ -47,7 +47,7 @@ export default function ChangePasswordForm({
   }
 
   return (
-    <div className="rounded-2xl border border-sand-200/80 bg-white p-6 shadow-card sm:p-8">
+    <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-card sm:p-8">
       {mustChange && (
         <div className="mb-5 rounded-lg border border-clay-500/30 bg-clay-100 px-4 py-3 text-sm text-clay-700">
           For security, please set a new password before continuing.

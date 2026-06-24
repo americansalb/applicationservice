@@ -32,8 +32,8 @@ const INK = "#20251f";
 const INK_SOFT = "#41483f";
 const INK_MUTED = "#6b7280";
 const INK_FAINT = "#9a9588";
-const SAND = "#f1ede4";
-const HAIRLINE = "#ece4d6";
+const SAND = "#f4f4f5";
+const HAIRLINE = "#e4e4e7";
 
 const FONT_SANS =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";

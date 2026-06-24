@@ -99,15 +99,15 @@ export default function InviteForm({
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
           <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm" onClick={close} />
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-sand-200 bg-white shadow-panel">
-            <div className="flex items-center justify-between border-b border-sand-200/70 px-6 py-4">
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-panel">
+            <div className="flex items-center justify-between border-b border-zinc-200/70 px-6 py-4">
               <h3 className="font-display text-lg font-medium text-ink">
                 {result ? "Invitation ready" : "Invite someone"}
               </h3>
               <button
                 onClick={close}
                 aria-label="Close"
-                className="rounded-md p-1 text-ink-faint transition hover:bg-sand-100 hover:text-ink"
+                className="rounded-md p-1 text-ink-faint transition hover:bg-zinc-100 hover:text-ink"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -129,11 +129,11 @@ export default function InviteForm({
                     readOnly
                     value={result.url}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="block w-full rounded-lg border border-sand-300 bg-sand-50 px-3 py-2 text-sm text-ink outline-none"
+                    className="block w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-ink outline-none"
                   />
                   <button
                     onClick={copy}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-sand-300 px-3 text-sm font-medium text-ink-soft transition hover:bg-sand-100"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-ink-soft transition hover:bg-zinc-100"
                   >
                     {copied ? (
                       <Check className="h-4 w-4 text-teal-700" strokeWidth={2} />
@@ -149,7 +149,7 @@ export default function InviteForm({
                 <div className="mt-6 flex justify-end gap-3">
                   <button
                     onClick={() => setResult(null)}
-                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:bg-sand-100"
+                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:bg-zinc-100"
                   >
                     Invite another
                   </button>
@@ -243,7 +243,7 @@ export default function InviteForm({
                   <button
                     type="button"
                     onClick={close}
-                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:bg-sand-100"
+                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:bg-zinc-100"
                   >
                     Cancel
                   </button>
@@ -265,7 +265,7 @@ export default function InviteForm({
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-sand-300 bg-white px-3 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
+  "block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-ink-faint/60 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15";
 
 function Field({
   label,

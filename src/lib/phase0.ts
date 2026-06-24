@@ -170,13 +170,13 @@ export const QUESTIONS: Phase0Question[] = [
         },
         {
           kind: "paragraph",
-          text: "It takes about ten minutes and saves as you go. A few questions are meant to make explicit what is easy to leave unspoken. There are no wrong answers.",
+          text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken. There are no wrong answers.",
         },
         {
           kind: "expect",
           items: [
-            { label: "About ten minutes", text: "Most institutions finish in one sitting." },
-            { label: "Saved as you go", text: "Step away and pick up where you left off." },
+            { label: "Thorough by design", text: "It asks real questions about real care." },
+            { label: "Saved as you go", text: "Step away and finish across sittings." },
             { label: "Becomes your standard", text: "AALB reviews it, then your interpreters begin." },
           ],
         },

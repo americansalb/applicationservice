@@ -220,7 +220,7 @@ export default async function ManagerDashboard({ user }: { user: SessionUser }) 
                   <span className="text-xs text-ink-faint">
                     {started
                       ? "Pick up where you left off"
-                      : "About 10 minutes, saved as you go"}
+                      : "Saved as you go, do it in stages"}
                   </span>
                 </div>
               </div>

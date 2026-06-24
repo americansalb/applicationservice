@@ -60,7 +60,7 @@ export default async function Phase0Page() {
 
 function SubmittedView({ orgName }: { orgName: string }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-zinc-50">
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
         <span className="font-display text-lg font-semibold tracking-tight text-ink">
           AALB

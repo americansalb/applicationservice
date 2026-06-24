@@ -80,7 +80,7 @@ export default function PlanCollect({
   return (
     <div className="space-y-3">
       {/* Upload now */}
-      <div className="rounded-xl border border-sand-200 bg-white p-4">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-center gap-2">
           <UploadCloud className="h-4 w-4 text-teal-700" strokeWidth={2} />
           <span className="text-sm font-semibold text-ink">Upload the document</span>
@@ -104,7 +104,7 @@ export default function PlanCollect({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-sand-300 bg-sand-50/60 px-4 py-3 text-sm font-medium text-ink-soft transition hover:border-teal-500/60 hover:bg-sand-50 disabled:opacity-60"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50/60 px-4 py-3 text-sm font-medium text-ink-soft transition hover:border-teal-500/60 hover:bg-zinc-50 disabled:opacity-60"
           >
             <FileText className="h-4 w-4 text-ink-faint" strokeWidth={1.75} />
             {uploading ? "Uploading..." : "Choose a file (PDF, Word, PNG, JPG)"}
@@ -127,7 +127,7 @@ export default function PlanCollect({
       </div>
 
       {/* Email an upload link */}
-      <div className="rounded-xl border border-sand-200 bg-white p-4">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-center gap-2">
           <Mail className="h-4 w-4 text-teal-700" strokeWidth={2} />
           <span className="text-sm font-semibold text-ink">Email an upload link</span>
@@ -160,7 +160,7 @@ export default function PlanCollect({
                   setSendErr("");
                 }}
                 placeholder="colleague@hospital.org"
-                className="min-w-0 flex-1 rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
               />
               <button
                 type="button"
@@ -179,7 +179,7 @@ export default function PlanCollect({
       </div>
 
       {/* Paste a link */}
-      <div className="rounded-xl border border-sand-200 bg-white p-4">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-center gap-2">
           <Link2 className="h-4 w-4 text-teal-700" strokeWidth={2} />
           <span className="text-sm font-semibold text-ink">Or paste a link</span>
@@ -193,7 +193,7 @@ export default function PlanCollect({
           onChange={(e) => onLinkChange(e.target.value)}
           placeholder="https://"
           maxLength={500}
-          className="mt-3 w-full rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+          className="mt-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
         />
       </div>
     </div>

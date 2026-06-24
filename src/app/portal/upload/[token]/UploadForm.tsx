@@ -76,7 +76,7 @@ export default function UploadForm({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sand-300 bg-sand-50/60 px-4 py-8 text-center transition hover:border-teal-500/60 hover:bg-sand-50"
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50/60 px-4 py-8 text-center transition hover:border-teal-500/60 hover:bg-zinc-50"
         >
           {file ? (
             <>
@@ -115,7 +115,7 @@ export default function UploadForm({
           onChange={(e) => setName(e.target.value)}
           placeholder="Your name (optional)"
           maxLength={200}
-          className="w-full rounded-xl border border-sand-200 bg-white px-4 py-3 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+          className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
         />
         {error && (
           <p className="text-sm font-medium text-clay-600">{error}</p>

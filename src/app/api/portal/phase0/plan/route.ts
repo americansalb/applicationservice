@@ -7,6 +7,7 @@ import { isSameOrigin, clientIp } from "@/lib/appRequest";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { verifyPlanUploadToken } from "@/lib/planUpload";
 import { validateFileContent } from "@/lib/fileMagic";
+import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -131,6 +132,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    await ensurePlanDocumentTable();
     await withDbRetry("portal.plan.upload", () =>
       prisma.planDocument.create({
         data: {

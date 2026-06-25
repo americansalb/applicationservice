@@ -129,6 +129,19 @@ export function hasStaffInterpreters(a: Phase0Answers): boolean {
   return staff(a["serve.spokenSource"]) || staff(a["serve.aslSource"]);
 }
 
+// Whether the institution relies on an outside agency or service for any
+// interpreting (spoken or signed). Gates the "interpreting service you use"
+// section: AALB does not assess those interpreters, so what we look at is how the
+// institution holds the service to its bar. The spoken and signed sources name
+// the outside option differently (outside vs agency); both count. "varies, with
+// no set arrangement" and ASL "none" are intentionally left out: there is no
+// service relationship to ask about.
+export function usesOutsideAgency(a: Phase0Answers): boolean {
+  const sp = a["serve.spokenSource"];
+  const asl = a["serve.aslSource"];
+  return sp === "outside" || sp === "both" || asl === "agency" || asl === "both";
+}
+
 // The combined language reality across every metro the institution serves.
 export function localAggregate(a: Phase0Answers): Aggregate {
   return aggregateLanguages(footprintSlugs(a));
@@ -300,6 +313,7 @@ export const SECTIONS: Phase0Section[] = [
   { id: "plan", title: "Your language access policies" },
   { id: "serve", title: "Who you serve" },
   { id: "evaluate", title: "How you hire and evaluate" },
+  { id: "agencies", title: "The interpreting service you use" },
 ];
 
 export const QUESTIONS: Phase0Question[] = [
@@ -939,6 +953,142 @@ export const QUESTIONS: Phase0Question[] = [
     whyItMatters:
       "The real process, in your words, often reveals what a form cannot.",
     placeholder: "What happens in the interview, who is involved, what you check.",
+    maxLength: 2000,
+  },
+
+  // -- Section: The interpreting service you use -----------------------------
+  // The other half of the standard: the outside interpreters the institution
+  // relies on. AALB does not assess agency interpreters, so what matters is how
+  // the institution holds the service to its bar. Shown when spoken or signed
+  // interpreting comes from an outside agency or service (usesOutsideAgency).
+  {
+    id: "agencies.intro",
+    section: "agencies",
+    type: "info",
+    prompt: "The interpreters you bring in from outside",
+    showIf: (a) => usesOutsideAgency(a),
+    dynamicContent: (_a, ctx) => ({
+      heading: "The interpreters you bring in from outside",
+      intro: `You told us ${ctx.orgName} uses an outside agency or service for some interpreting. AALB does not assess those interpreters directly, so what we look at is how you make sure the people they send are qualified.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "A few quick questions about what you require of the service and how you keep an eye on quality. This is the other half of your standard: the interpreters you employ, and the ones you bring in from outside.",
+        },
+        {
+          kind: "note",
+          text: "Using an outside service is a sound choice, especially for languages you see rarely. The standard simply expects you to hold that service to the same bar you set for your own people.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "agencies.who",
+    section: "agencies",
+    type: "short_text",
+    required: false,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "Which outside interpreting service or agency do you use?",
+    help: "A name is enough. If you use more than one, list the main ones.",
+    whyItMatters:
+      "Knowing the service lets us account for the credentials and quality standards it already holds, so your standard builds on them.",
+    placeholder: "e.g. LanguageLine, Martti, or a local agency",
+    maxLength: 300,
+  },
+  {
+    id: "agencies.requirement",
+    section: "agencies",
+    type: "single_select",
+    required: true,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "What do you require the service's interpreters to hold?",
+    whyItMatters:
+      "This is the floor you set for interpreters you do not employ. It tells us whether your outside coverage meets the same bar as your own staff.",
+    options: [
+      { value: "national", label: "National certification" },
+      {
+        value: "training",
+        label: "A medical interpreter training course, like the 40-hour standard",
+      },
+      {
+        value: "qualified",
+        label: "Qualified medical interpreters, without naming a specific credential",
+      },
+      { value: "none", label: "We do not set a requirement; we trust the service" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "agencies.assurance",
+    section: "agencies",
+    type: "single_select",
+    required: true,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "How do you know the interpreters they send actually meet that bar?",
+    help: "Whatever happens in practice, even if it is mostly trust.",
+    whyItMatters:
+      "The difference between a requirement on paper and one that is checked is exactly what your standard makes explicit.",
+    options: [
+      {
+        value: "contract",
+        label: "It is written into our contract and the service certifies it",
+      },
+      {
+        value: "verify",
+        label: "We check or spot-check their credentials ourselves",
+      },
+      { value: "trust", label: "We rely on the service's word" },
+      { value: "none", label: "We do not verify it" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "agencies.oversight",
+    section: "agencies",
+    type: "single_select",
+    required: true,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "Once interpreting is happening, how do you keep an eye on quality?",
+    whyItMatters:
+      "Skills and services drift. Knowing whether you review quality tells us if your standard needs an ongoing check on outside interpreting too.",
+    options: [
+      {
+        value: "review",
+        label: "We review the service's quality on a regular basis",
+      },
+      { value: "reports", label: "The service sends us quality or usage reports" },
+      { value: "complaint", label: "Only when there is a complaint" },
+      { value: "none", label: "No formal oversight" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "agencies.agreement",
+    section: "agencies",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "service_agreement",
+    required: false,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "Share your contract or service agreement with that service.",
+    help: "Upload it, email whoever handles your contracts a link, paste a link, or paste the text. Optional.",
+    whyItMatters:
+      "Your agreement is where the qualification and quality terms usually live. We read it to see what you have already committed the service to.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "agencies.process",
+    section: "agencies",
+    type: "long_text",
+    reflective: true,
+    required: false,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "When a patient needs a language you cover through the service, walk us through what happens.",
+    help: "A few sentences is plenty.",
+    whyItMatters:
+      "The real process, in your words, often shows how fast and how reliably an outside interpreter actually reaches the bedside.",
+    placeholder: "Who places the request, how the interpreter joins, in person or by phone or video.",
     maxLength: 2000,
   },
 ];

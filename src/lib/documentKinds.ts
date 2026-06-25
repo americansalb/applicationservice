@@ -1,7 +1,8 @@
 // The kinds of institution document AALB collects in Phase 0. They all share one
 // table (app_plan_document, see PlanDocument), discriminated by `kind`. "plan" is
-// the language access plan (the original upload); the rest are the interpreter
-// evaluation materials collected in the "How you hire and evaluate" section.
+// the language access plan (the original upload); job_description, evaluation_material,
+// and qa_record are collected in "How you hire and evaluate"; service_agreement is the
+// outside-service contract collected in "The interpreting service you use".
 // Per-interpreter credential documents are Phase 1 credential verification, not
 // here. This registry is the single source of truth for copy and validation,
 // shared by the server (upload/send-link routes) and the client (PlanCollect).
@@ -10,7 +11,8 @@ export type DocumentKind =
   | "plan"
   | "job_description"
   | "evaluation_material"
-  | "qa_record";
+  | "qa_record"
+  | "service_agreement";
 
 type DocumentKindInfo = {
   label: string; // Title-case, for review headings and email subjects
@@ -33,6 +35,10 @@ export const DOCUMENT_KIND_INFO: Record<DocumentKind, DocumentKindInfo> = {
   qa_record: {
     label: "Quality records",
     noun: "interpreter quality records",
+  },
+  service_agreement: {
+    label: "Interpreting service agreement",
+    noun: "interpreting service agreement",
   },
 };
 

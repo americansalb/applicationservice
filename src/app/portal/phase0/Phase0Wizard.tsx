@@ -30,17 +30,29 @@ export default function Phase0Wizard({
   initialAnswers,
   docsByKind = {},
   config,
+  status,
 }: {
   orgName: string;
   initialAnswers: Phase0Answers;
   docsByKind?: Record<string, string>;
   config?: Phase0Config;
+  status?: string;
 }) {
   const router = useRouter();
   const ctx = useMemo(() => ({ orgName, config }), [orgName, config]);
 
   const [answers, setAnswers] = useState<Phase0Answers>(initialAnswers || {});
-  const [index, setIndex] = useState(0);
+  // Resume where the manager left off: a returning, in-progress questionnaire
+  // opens at the first required question they have not answered yet, instead of
+  // restarting at the intro. A fresh start (or a finished one) opens at step one.
+  const [index, setIndex] = useState(() => {
+    if (status !== "in_progress") return 0;
+    const a = initialAnswers || {};
+    const i = visibleQuestions(a, ctx).findIndex(
+      (q) => q.type !== "info" && q.required && !isAnswered(q, a)
+    );
+    return i >= 0 ? i : 0;
+  });
   const [error, setError] = useState("");
   const [finishing, setFinishing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -50,6 +62,8 @@ export default function Phase0Wizard({
   const savingRef = useRef(false);
   const pendingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
 
   const doSave = useCallback(async (): Promise<void> => {
     if (savingRef.current) {
@@ -67,10 +81,21 @@ export default function Phase0Wizard({
         body: JSON.stringify({ answers: answersRef.current, submit: false }),
       });
       if (!res.ok) throw new Error("save failed");
+      retryCountRef.current = 0;
       setSaveState("saved");
     } catch {
       dirtyRef.current = true;
       setSaveState("error");
+      // Recover on its own from a dropped request or a brief outage, backing off
+      // each time, so a transient failure does not sit and wait for a keystroke.
+      if (retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(
+          () => void doSave(),
+          1000 * 2 ** retryCountRef.current
+        );
+      }
     } finally {
       savingRef.current = false;
       if (pendingRef.current) {
@@ -94,6 +119,13 @@ export default function Phase0Wizard({
     if (dirtyRef.current) void doSave();
   }, [doSave]);
 
+  const retryNow = useCallback(() => {
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    dirtyRef.current = true;
+    void doSave();
+  }, [doSave]);
+
   useEffect(() => {
     const handler = () => {
       if (!dirtyRef.current) return;
@@ -112,6 +144,7 @@ export default function Phase0Wizard({
     return () => {
       window.removeEventListener("beforeunload", handler);
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, []);
 
@@ -216,6 +249,21 @@ export default function Phase0Wizard({
     router.push("/portal");
   }, [flushSave, router]);
 
+  // Enter advances on screens with nothing to type, so the keyboard alone can
+  // carry the manager through the briefing and the single-choice questions.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey) return;
+      if ((e.target as HTMLElement | null)?.tagName === "TEXTAREA") return;
+      if (current && (current.type === "info" || current.type === "single_select")) {
+        e.preventDefault();
+        goNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current, goNext]);
+
   if (!current) return null;
 
   const nonInfo = steps.filter((s) => s.type !== "info");
@@ -239,7 +287,7 @@ export default function Phase0Wizard({
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <SaveStatus state={saveState} />
+          <SaveStatus state={saveState} onRetry={retryNow} />
           <button
             onClick={exit}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-faint transition hover:text-ink"
@@ -263,7 +311,7 @@ export default function Phase0Wizard({
 
           {current.type === "info" ? renderInfo(resolveInfo(current, answers, ctx)) : renderQuestion()}
 
-          {error && <p className="mt-4 text-sm font-medium text-clay-600">{error}</p>}
+          {error && <p role="alert" className="mt-4 text-sm font-medium text-clay-600">{error}</p>}
         </div>
       </main>
 
@@ -360,7 +408,7 @@ export default function Phase0Wizard({
       const opts = resolveOptions(q, answers, ctx);
       const value = answers[q.id];
       return (
-        <div className="space-y-2.5">
+        <div role="radiogroup" aria-label={q.prompt} className="space-y-2.5">
           {opts.map((o) => (
             <OptionRow
               key={o.value}
@@ -378,7 +426,7 @@ export default function Phase0Wizard({
       const opts = resolveOptions(q, answers, ctx);
       const arr = asArr(answers[q.id]);
       return (
-        <div className="space-y-2.5">
+        <div role="group" aria-label={q.prompt} className="space-y-2.5">
           {opts.map((o) => (
             <OptionRow
               key={o.value}
@@ -396,6 +444,7 @@ export default function Phase0Wizard({
       return (
         <input
           type="text"
+          aria-label={q.prompt}
           value={(answers[q.id] as string) ?? ""}
           onChange={(e) => onText(q, e.target.value)}
           placeholder={q.placeholder}
@@ -407,6 +456,7 @@ export default function Phase0Wizard({
     if (q.type === "long_text") {
       return (
         <textarea
+          aria-label={q.prompt}
           value={(answers[q.id] as string) ?? ""}
           onChange={(e) => onText(q, e.target.value)}
           placeholder={q.placeholder}
@@ -470,6 +520,8 @@ function OptionRow({
   return (
     <button
       onClick={onClick}
+      role={multi ? "checkbox" : "radio"}
+      aria-checked={selected}
       className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition ${
         selected
           ? "border-teal-600 bg-teal-50/70 ring-1 ring-teal-600"
@@ -491,14 +543,36 @@ function OptionRow({
   );
 }
 
-function SaveStatus({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
-  if (state === "idle") return null;
-  if (state === "saving") return <span className="text-xs text-ink-faint">Saving...</span>;
-  if (state === "error") return <span className="text-xs text-clay-600">Could not save</span>;
+function SaveStatus({
+  state,
+  onRetry,
+}: {
+  state: "idle" | "saving" | "saved" | "error";
+  onRetry?: () => void;
+}) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-ink-faint">
-      <Check className="h-3.5 w-3.5 text-teal-600" strokeWidth={2.5} />
-      Saved
+    <span aria-live="polite" className="inline-flex items-center gap-2 text-xs">
+      {state === "saving" && <span className="text-ink-faint">Saving...</span>}
+      {state === "saved" && (
+        <span className="inline-flex items-center gap-1 text-ink-faint">
+          <Check className="h-3.5 w-3.5 text-teal-600" strokeWidth={2.5} />
+          Saved
+        </span>
+      )}
+      {state === "error" && (
+        <>
+          <span className="text-clay-600">Could not save</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-medium text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              Retry
+            </button>
+          )}
+        </>
+      )}
     </span>
   );
 }

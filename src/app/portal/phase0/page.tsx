@@ -77,6 +77,7 @@ export default async function Phase0Page() {
       initialAnswers={initialAnswers}
       docsByKind={docsByKind}
       config={config}
+      status={org.phase0Status}
     />
   );
 }

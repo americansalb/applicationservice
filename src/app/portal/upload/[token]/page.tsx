@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { LogoImage } from "../../Brand";
 import { verifyPlanUploadToken } from "@/lib/planUpload";
+import { coerceDocumentKind } from "@/lib/documentKinds";
 import UploadForm from "./UploadForm";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Upload language access policies",
+  title: "Upload a document for AALB",
   robots: { index: false, follow: false },
 };
 
@@ -16,10 +17,13 @@ export const metadata: Metadata = {
 // it and resolve the org name for display. Mirrors the invitation accept page.
 export default async function PlanUploadPage({
   params,
+  searchParams,
 }: {
   params: { token: string };
+  searchParams?: { k?: string | string[] };
 }) {
   const orgId = verifyPlanUploadToken(params.token);
+  const kind = coerceDocumentKind(searchParams?.k);
   let orgName: string | null = null;
   if (orgId) {
     try {
@@ -42,7 +46,11 @@ export default async function PlanUploadPage({
         </div>
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-8 shadow-raised sm:p-10">
           {valid ? (
-            <UploadForm token={params.token} orgName={orgName as string} />
+            <UploadForm
+              token={params.token}
+              orgName={orgName as string}
+              kind={kind}
+            />
           ) : (
             <div className="text-center">
               <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">

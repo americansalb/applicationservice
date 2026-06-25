@@ -28,12 +28,12 @@ const AUTOSAVE_DEBOUNCE_MS = 1200;
 export default function Phase0Wizard({
   orgName,
   initialAnswers,
-  planDoc = null,
+  docsByKind = {},
   config,
 }: {
   orgName: string;
   initialAnswers: Phase0Answers;
-  planDoc?: string | null;
+  docsByKind?: Record<string, string>;
   config?: Phase0Config;
 }) {
   const router = useRouter();
@@ -314,10 +314,12 @@ export default function Phase0Wizard({
 
   function renderControl(q: Phase0Question) {
     if (q.widget === "plan") {
+      const kind = q.documentKind ?? "plan";
       return (
         <PlanCollect
           orgName={orgName}
-          initialDoc={planDoc}
+          kind={kind}
+          initialDoc={docsByKind[kind] ?? null}
           linkValue={(answers[q.id] as string) ?? ""}
           onLinkChange={(v) => onText(q, v)}
         />

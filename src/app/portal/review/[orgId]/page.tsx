@@ -19,6 +19,7 @@ import {
 } from "@/lib/phase0";
 import { getMetroProfile } from "@/lib/metroData";
 import { sanitizePhase0Config } from "@/lib/phase0Config";
+import { DOCUMENT_KINDS, DOCUMENT_KIND_INFO } from "@/lib/documentKinds";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export default async function ReviewPage({
     sizeBytes: number;
     uploadedVia: string;
     uploaderName: string | null;
+    kind: string;
     createdAt: Date;
   };
   let docs: ReviewDoc[] = [];
@@ -75,6 +77,7 @@ export default async function ReviewPage({
         sizeBytes: true,
         uploadedVia: true,
         uploaderName: true,
+        kind: true,
         createdAt: true,
       },
     });
@@ -96,6 +99,19 @@ export default async function ReviewPage({
     typeof answers["plan.link"] === "string"
       ? (answers["plan.link"] as string)
       : "";
+
+  // Group uploaded documents by kind, in the registry's order, for the listing.
+  const byKind = new Map<string, ReviewDoc[]>();
+  for (const d of docs) {
+    const arr = byKind.get(d.kind);
+    if (arr) arr.push(d);
+    else byKind.set(d.kind, [d]);
+  }
+  const docGroups = DOCUMENT_KINDS.filter((k) => byKind.has(k)).map((k) => ({
+    kind: k,
+    label: DOCUMENT_KIND_INFO[k].label,
+    items: byKind.get(k) as ReviewDoc[],
+  }));
 
   return (
     <PortalChrome
@@ -129,14 +145,14 @@ export default async function ReviewPage({
         </div>
       </div>
 
-      {/* The uploaded plan document(s) */}
+      {/* Uploaded documents, grouped by kind */}
       <section className="mt-7">
         <h2 className="mb-3 font-display text-base font-medium text-ink">
-          Language access policies
+          Documents on file
         </h2>
-        {docs.length === 0 ? (
+        {docGroups.length === 0 ? (
           <div className="rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 text-sm text-ink-soft shadow-card">
-            No file uploaded yet.
+            No documents uploaded yet.
             {planLink ? (
               <>
                 {" "}
@@ -151,38 +167,47 @@ export default async function ReviewPage({
                 </a>
               </>
             ) : (
-              " It may arrive later, or the institution may not have written policies."
+              " They may arrive later, or be provided during review."
             )}
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {docs.map((d) => (
-              <div
-                key={d.id}
-                className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 shadow-card"
-              >
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-700/15">
-                  <FileText className="h-5 w-5" strokeWidth={1.75} />
-                </span>
-                <div className="min-w-[12rem] flex-1">
-                  <p className="font-medium text-ink">{d.filename}</p>
-                  <p className="text-sm text-ink-soft">
-                    {fmtType(d.mimeType)} · {fmtSize(d.sizeBytes)} ·{" "}
-                    {d.uploadedVia === "link"
-                      ? `via emailed link${d.uploaderName ? ` by ${d.uploaderName}` : ""}`
-                      : "uploaded by the manager"}{" "}
-                    · {fmtDate(d.createdAt)}
-                  </p>
+          <div className="space-y-6">
+            {docGroups.map((g) => (
+              <div key={g.kind}>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">
+                  {g.label}
+                </h3>
+                <div className="space-y-2.5">
+                  {g.items.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 shadow-card"
+                    >
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-700/15">
+                        <FileText className="h-5 w-5" strokeWidth={1.75} />
+                      </span>
+                      <div className="min-w-[12rem] flex-1">
+                        <p className="font-medium text-ink">{d.filename}</p>
+                        <p className="text-sm text-ink-soft">
+                          {fmtType(d.mimeType)} · {fmtSize(d.sizeBytes)} ·{" "}
+                          {d.uploadedVia === "link"
+                            ? `via emailed link${d.uploaderName ? ` by ${d.uploaderName}` : ""}`
+                            : "uploaded by the manager"}{" "}
+                          · {fmtDate(d.createdAt)}
+                        </p>
+                      </div>
+                      <a
+                        href={`/api/portal/phase0/plan/${d.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-950"
+                      >
+                        <ExternalLink className="h-4 w-4" strokeWidth={2} />
+                        View file
+                      </a>
+                    </div>
+                  ))}
                 </div>
-                <a
-                  href={`/api/portal/phase0/plan/${d.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-950"
-                >
-                  <ExternalLink className="h-4 w-4" strokeWidth={2} />
-                  View file
-                </a>
               </div>
             ))}
           </div>

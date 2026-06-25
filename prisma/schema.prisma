@@ -272,8 +272,10 @@ model PlanDocument {
   content        Bytes
   uploadedVia    String // "manager" | "link"
   uploaderName   String?
+  kind           String       @default("plan") // documentKinds.ts: plan | job_description | evaluation_material | qa_record
   createdAt      DateTime     @default(now())
 
   @@index([organizationId])
+  @@index([organizationId, kind])
   @@map("app_plan_document")
 }

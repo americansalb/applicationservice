@@ -67,6 +67,9 @@ export type Phase0Question = {
   section: string;
   type: Phase0QuestionType;
   widget?: Phase0Widget;
+  // For a document-collection question (widget "plan"): which document kind it
+  // collects (documentKinds.ts). Defaults to "plan" (the language access plan).
+  documentKind?: string;
   prompt: string;
   help?: string;
   whyItMatters?: string;
@@ -116,6 +119,14 @@ export function spokenLanguages(a: Phase0Answers): string[] {
 }
 export function hasSpokenLanguages(a: Phase0Answers): boolean {
   return spokenLanguages(a).length > 0;
+}
+
+// Whether the institution employs its own interpreters (spoken or signed) -- the
+// people AALB assesses. Gates the "how you hire and evaluate" deep-dive: a fully
+// outsourced institution has no staff interpreters to look at.
+export function hasStaffInterpreters(a: Phase0Answers): boolean {
+  const staff = (v: unknown) => v === "staff" || v === "both";
+  return staff(a["serve.spokenSource"]) || staff(a["serve.aslSource"]);
 }
 
 // The combined language reality across every metro the institution serves.
@@ -288,6 +299,7 @@ export const SECTIONS: Phase0Section[] = [
   { id: "goal", title: "What you're aiming for" },
   { id: "plan", title: "Your language access policies" },
   { id: "serve", title: "Who you serve" },
+  { id: "evaluate", title: "How you hire and evaluate" },
 ];
 
 export const QUESTIONS: Phase0Question[] = [
@@ -764,6 +776,170 @@ export const QUESTIONS: Phase0Question[] = [
       { value: "many_daily", label: "Many times a day" },
       { value: "constant", label: "Constantly, across multiple departments" },
     ],
+  },
+
+  // -- Section: How you hire and evaluate ------------------------------------
+  // The deep-dive into the staff interpreters AALB will assess: the job
+  // description they hire against, the materials and process they evaluate with
+  // today, and what happens at hire. Shown only when the institution employs
+  // interpreters (spoken or ASL). Per-interpreter credential documents are a
+  // later phase, not collected here.
+  {
+    id: "evaluate.intro",
+    section: "evaluate",
+    type: "info",
+    prompt: "How you hire and evaluate interpreters",
+    showIf: (a) => hasStaffInterpreters(a),
+    dynamicContent: (_a, ctx) => ({
+      heading: "Now, the interpreters you employ",
+      intro: `You told us ${ctx.orgName} employs its own interpreters. This is where we learn how you bring them on and judge their skill today, so your standard builds on what you already do.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "We will ask for your interpreter job description, anything you use to evaluate interpreters, and how hiring works in practice. Share what you have; AALB can request the rest at review. There are no wrong answers, only your honest starting point.",
+        },
+        {
+          kind: "note",
+          text: "This is about your process and standards, not any one person's file. Checking individual interpreters' credentials comes later.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "evaluate.jobDesc",
+    section: "evaluate",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "job_description",
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Share the job description you hire interpreters against.",
+    help: "Upload it, email a colleague like HR a link, paste a link, or paste the text. Optional here; AALB can request it during review.",
+    whyItMatters:
+      "Your job description is the bar you set today. We read it to see what you already expect, then build the assessment on top of it.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "evaluate.proficiencyAtHire",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "At hire, how do you check an interpreter's language proficiency?",
+    whyItMatters:
+      "This tells us whether skill is verified today or assumed, which is exactly the gap our assessment closes.",
+    options: [
+      { value: "formal", label: "A formal language or interpreting test" },
+      { value: "informal", label: "An informal conversation or interview" },
+      { value: "credentials", label: "We rely on their resume or credentials" },
+      { value: "none", label: "We do not check proficiency at hire" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "evaluate.credentialAtHire",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Do you require any credential or training to interpret for you?",
+    whyItMatters:
+      "It shows the floor you set today, and how far it is from the standard you are aiming for.",
+    options: [
+      { value: "national", label: "National certification" },
+      {
+        value: "training",
+        label: "A medical interpreter training course, like the 40-hour standard",
+      },
+      { value: "internal", label: "Our own internal training or check" },
+      { value: "none", label: "No requirement" },
+      { value: "varies", label: "It varies" },
+    ],
+  },
+  {
+    id: "evaluate.whoEvaluates",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Today, who judges an interpreter's skill when you hire?",
+    help: "Whoever actually decides the person can interpret well enough.",
+    whyItMatters:
+      "Whether someone who shares the language assesses skill is the difference between a real check and a guess.",
+    options: [
+      {
+        value: "qualified",
+        label: "A qualified bilingual evaluator or senior interpreter",
+      },
+      { value: "managerLang", label: "A manager who speaks the language" },
+      {
+        value: "managerNoLang",
+        label: "A manager who does not speak the language",
+      },
+      { value: "outside", label: "An outside service" },
+      { value: "none", label: "No one evaluates skill formally" },
+    ],
+  },
+  {
+    id: "evaluate.ongoing",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "After hire, is an interpreter's skill ever checked again?",
+    whyItMatters:
+      "Skills drift. Knowing whether you re-check tells us if your standard needs an ongoing component.",
+    options: [
+      { value: "regular", label: "Yes, on a regular schedule" },
+      { value: "complaint", label: "Only if there is a complaint" },
+      { value: "no", label: "No" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "evaluate.materials",
+    section: "evaluate",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "evaluation_material",
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Share any rubrics, checklists, or tests you use to evaluate interpreters.",
+    help: "Upload, email a link, paste a link, or paste the text. Optional.",
+    whyItMatters:
+      "If you already evaluate interpreters, we build on your tools instead of replacing them.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "evaluate.qa",
+    section: "evaluate",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "qa_record",
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Share any interpreter quality or QA records you keep.",
+    help: "Upload, email a link, paste a link, or paste the text. Optional.",
+    whyItMatters:
+      "Your quality records show how interpreting performs in real encounters, not just at hire.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "evaluate.process",
+    section: "evaluate",
+    type: "long_text",
+    reflective: true,
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Walk us through what happens when you bring on a new interpreter, from interview to first patient.",
+    help: "A few sentences is plenty.",
+    whyItMatters:
+      "The real process, in your words, often reveals what a form cannot.",
+    placeholder: "What happens in the interview, who is involved, what you check.",
+    maxLength: 2000,
   },
 ];
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { UploadCloud, Check, FileText, Mail, Link2 } from "lucide-react";
+import { UploadCloud, Check, FileText, Mail, Link2, Type } from "lucide-react";
+import { documentKindNoun } from "@/lib/documentKinds";
 
 const ACCEPT =
   ".pdf,.doc,.docx,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg";
@@ -17,12 +18,16 @@ export default function PlanCollect({
   initialDoc,
   linkValue,
   onLinkChange,
+  kind = "plan",
 }: {
   orgName: string;
   initialDoc: string | null;
   linkValue: string;
   onLinkChange: (v: string) => void;
+  kind?: string;
 }) {
+  const noun = documentKindNoun(kind);
+
   const [docName, setDocName] = useState<string | null>(initialDoc);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
@@ -33,12 +38,18 @@ export default function PlanCollect({
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sendErr, setSendErr] = useState("");
 
+  const [text, setText] = useState("");
+  const [savingText, setSavingText] = useState(false);
+  const [textSaved, setTextSaved] = useState(false);
+  const [textErr, setTextErr] = useState("");
+
   async function upload(file: File) {
     setUploading(true);
     setUploadErr("");
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("kind", kind);
       const res = await fetch("/api/portal/phase0/plan", {
         method: "POST",
         body: fd,
@@ -64,7 +75,7 @@ export default function PlanCollect({
       const res = await fetch("/api/portal/phase0/plan/send-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), kind }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Could not send the link.");
@@ -74,6 +85,31 @@ export default function PlanCollect({
       setSendErr(e instanceof Error ? e.message : "Could not send the link.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function saveText() {
+    if (!text.trim()) {
+      setTextErr("Type or paste some text first.");
+      return;
+    }
+    setSavingText(true);
+    setTextErr("");
+    try {
+      const fd = new FormData();
+      fd.append("text", text);
+      fd.append("kind", kind);
+      const res = await fetch("/api/portal/phase0/plan", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not save the text.");
+      setTextSaved(true);
+    } catch (e) {
+      setTextErr(e instanceof Error ? e.message : "Could not save the text.");
+    } finally {
+      setSavingText(false);
     }
   }
 
@@ -185,7 +221,7 @@ export default function PlanCollect({
           <span className="text-sm font-semibold text-ink">Or paste a link</span>
         </div>
         <p className="mt-1 text-[13px] leading-snug text-ink-faint">
-          If {orgName}&apos;s policies live online, an intranet page or shared drive.
+          If it lives on an intranet page or shared drive, paste the link.
         </p>
         <input
           type="url"
@@ -195,6 +231,61 @@ export default function PlanCollect({
           maxLength={500}
           className="mt-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
         />
+      </div>
+
+      {/* Or paste the text directly */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex items-center gap-2">
+          <Type className="h-4 w-4 text-teal-700" strokeWidth={2} />
+          <span className="text-sm font-semibold text-ink">Or paste the text</span>
+        </div>
+        {textSaved ? (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-teal-50 px-3 py-2.5 ring-1 ring-inset ring-teal-700/15">
+            <span className="flex min-w-0 items-center gap-2 text-sm text-teal-900">
+              <Check className="h-4 w-4 shrink-0 text-teal-700" strokeWidth={2.5} />
+              <span className="truncate">Saved. AALB has the text.</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setTextSaved(false);
+                setText("");
+              }}
+              className="shrink-0 text-xs font-medium text-teal-700 underline-offset-2 hover:underline"
+            >
+              Add more
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mt-1 text-[13px] leading-snug text-ink-faint">
+              No file? Type or paste the {noun} straight in.
+            </p>
+            <textarea
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setTextErr("");
+              }}
+              rows={5}
+              placeholder="Type or paste here"
+              className="mt-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm leading-relaxed text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+            />
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void saveText()}
+                disabled={savingText}
+                className="rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-950 disabled:opacity-60"
+              >
+                {savingText ? "Saving..." : "Save text"}
+              </button>
+            </div>
+          </>
+        )}
+        {textErr && (
+          <p className="mt-2 text-sm font-medium text-clay-600">{textErr}</p>
+        )}
       </div>
     </div>
   );

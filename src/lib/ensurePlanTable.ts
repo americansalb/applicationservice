@@ -27,9 +27,15 @@ export async function ensurePlanDocumentTable(): Promise<void> {
           "content" BYTEA NOT NULL,
           "uploadedVia" TEXT NOT NULL,
           "uploaderName" TEXT,
+          "kind" TEXT NOT NULL DEFAULT 'plan',
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT "app_plan_document_pkey" PRIMARY KEY ("id")
         )`
+      );
+      // A table self-healed before the kind column existed needs it added; the
+      // boot-time migration (13_plan_document_kind) may not have run here.
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "app_plan_document" ADD COLUMN IF NOT EXISTS "kind" TEXT NOT NULL DEFAULT 'plan'`
       );
       await prisma.$executeRawUnsafe(
         `CREATE INDEX IF NOT EXISTS "app_plan_document_organizationId_idx" ON "app_plan_document" ("organizationId")`

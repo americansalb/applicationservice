@@ -12,6 +12,7 @@ import {
 } from "@/lib/planUpload";
 import { planUploadEmailHtml, planUploadEmailText } from "@/lib/invitations";
 import { sendEmail } from "@/lib/email";
+import { coerceDocumentKind, documentKindNoun } from "@/lib/documentKinds";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const kind = coerceDocumentKind(body?.kind);
 
     const org = await withDbRetry("portal.plan.sendlink.org", () =>
       prisma.organization.findUnique({
@@ -70,17 +72,22 @@ export async function POST(req: NextRequest) {
     }
 
     const token = createPlanUploadToken(session.organizationId);
-    const url = planUploadUrl(baseUrl(req), token);
+    const base = planUploadUrl(baseUrl(req), token);
+    // kind rides as a query param (not in the signed token): it only labels which
+    // document slot the upload lands in for an org the link already authorizes.
+    const url = kind === "plan" ? base : `${base}?k=${kind}`;
+    const docLabel = documentKindNoun(kind);
     const opts = {
       orgName: org.name,
       url,
       inviterName: session.name,
       ttlDays: PLAN_UPLOAD_TTL_DAYS,
+      docLabel,
     };
 
     await sendEmail(
       email,
-      `Upload ${org.name}'s language access policies`,
+      `Upload ${org.name}'s ${docLabel}`,
       planUploadEmailHtml(opts),
       { text: planUploadEmailText(opts) }
     );

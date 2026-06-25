@@ -168,6 +168,9 @@ type PlanUploadEmailOpts = {
   inviterName?: string;
   // How long the link stays valid, in days (kept in sync with planUpload.ts).
   ttlDays: number;
+  // Lower-case noun for the document being requested (documentKinds.ts), e.g.
+  // "interpreter job description". Defaults to the language access plan.
+  docLabel?: string;
 };
 
 // The email that carries a token-gated link for uploading an institution's
@@ -175,14 +178,16 @@ type PlanUploadEmailOpts = {
 // table layout, inline styles, typographic wordmark (no remote image).
 export function planUploadEmailHtml(opts: PlanUploadEmailOpts): string {
   const { orgName, url, inviterName, ttlDays } = opts;
+  const docLabel = opts.docLabel ?? "language access policies";
+  const docLabelEsc = escapeHtml(docLabel);
   const org = escapeHtml(orgName);
   const safeUrl = escapeAttr(url);
   const intro = inviterName
     ? `${escapeHtml(inviterName)} has asked you to share`
     : "You have been asked to share";
   const year = new Date().getFullYear();
-  const line = `${intro} <strong style="color:${INK};">${org}</strong>'s written language access policies with AALB. They are part of your standards review, and it takes one upload.`;
-  const preheader = `${intro} ${orgName}'s language access policies with AALB.`;
+  const line = `${intro} <strong style="color:${INK};">${org}</strong>'s ${docLabelEsc} with AALB, as part of your standards review. It takes one upload.`;
+  const preheader = `${intro} ${orgName}'s ${docLabel} with AALB.`;
 
   const header = `<div style="font-family:${FONT_SERIF};font-size:30px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;line-height:1;">AALB</div>
               <div style="font-family:${FONT_SANS};font-size:11px;font-weight:600;letter-spacing:0.24em;text-transform:uppercase;color:${TEAL_200};margin-top:9px;">Evaluation Platform</div>`;
@@ -194,7 +199,7 @@ export function planUploadEmailHtml(opts: PlanUploadEmailOpts): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="x-apple-disable-message-reformatting" />
 <meta name="color-scheme" content="light only" />
-<title>Upload your language access policies</title>
+<title>Upload your ${docLabelEsc}</title>
 </head>
 <body style="margin:0;padding:0;background:${SAND};-webkit-text-size-adjust:100%;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}</div>
@@ -209,7 +214,7 @@ export function planUploadEmailHtml(opts: PlanUploadEmailOpts): string {
           </tr>
           <tr>
             <td style="background:#ffffff;padding:40px 40px 32px;">
-              <h1 style="margin:0 0 18px;font-family:${FONT_SERIF};font-size:25px;line-height:1.25;color:${INK};font-weight:600;">Upload your language access policies</h1>
+              <h1 style="margin:0 0 18px;font-family:${FONT_SERIF};font-size:25px;line-height:1.25;color:${INK};font-weight:600;">Upload your ${docLabelEsc}</h1>
               <p style="margin:0 0 10px;font-family:${FONT_SANS};font-size:16px;line-height:1.65;color:${INK_SOFT};">
                 ${line}
               </p>
@@ -234,7 +239,7 @@ export function planUploadEmailHtml(opts: PlanUploadEmailOpts): string {
           <tr>
             <td style="background:#ffffff;border-radius:0 0 16px 16px;border-top:1px solid ${HAIRLINE};padding:24px 40px 28px;">
               <p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_FAINT};">
-                You're receiving this because someone at ${org} asked you to upload their language access policies. If you weren't expecting it, you can safely ignore this email.
+                You're receiving this because someone at ${org} asked you to upload their ${docLabelEsc}. If you weren't expecting it, you can safely ignore this email.
               </p>
               <p style="margin:12px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:#b8b3a6;">
                 &copy; ${year} Americans Against Language Barriers
@@ -251,13 +256,14 @@ export function planUploadEmailHtml(opts: PlanUploadEmailOpts): string {
 
 export function planUploadEmailText(opts: PlanUploadEmailOpts): string {
   const { orgName, url, inviterName, ttlDays } = opts;
+  const docLabel = opts.docLabel ?? "language access policies";
   const intro = inviterName
     ? `${inviterName} has asked you to share`
     : "You have been asked to share";
   return [
     "AALB Evaluation Platform",
     "",
-    `${intro} ${orgName}'s written language access policies with AALB.`,
+    `${intro} ${orgName}'s ${docLabel} with AALB.`,
     "",
     "Upload it here (no account or sign in needed):",
     url,

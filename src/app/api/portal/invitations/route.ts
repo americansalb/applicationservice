@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { sanitizePhase0Config } from "@/lib/phase0Config";
 import { withDbRetry, isConnectivityError } from "@/lib/dbRetry";
 import { userFromToken } from "@/lib/appSession";
 import { SESSION_COOKIE } from "@/lib/appAuth";
@@ -115,6 +117,8 @@ export async function POST(req: NextRequest) {
         : null;
     const organizationName =
       typeof body?.organizationName === "string" ? body.organizationName.trim() : "";
+    // What AALB already knows, set only when creating a brand-new organization.
+    const phase0Config = sanitizePhase0Config(body?.phase0Config);
 
     if (!email || !EMAIL_RE.test(email) || email.length > 320) {
       return NextResponse.json(
@@ -178,7 +182,11 @@ export async function POST(req: NextRequest) {
       } else if (organizationName) {
         const created = await withDbRetry("portal.invite.org.create", () =>
           prisma.organization.create({
-            data: { name: organizationName, createdById: session.id },
+            data: {
+              name: organizationName,
+              createdById: session.id,
+              phase0Config: phase0Config as Prisma.InputJsonObject,
+            },
             select: { id: true, name: true },
           })
         );

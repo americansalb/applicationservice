@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { UploadCloud, Check, FileText } from "lucide-react";
+import { documentKindNoun } from "@/lib/documentKinds";
 
 const ACCEPT =
   ".pdf,.doc,.docx,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg";
@@ -9,10 +10,13 @@ const ACCEPT =
 export default function UploadForm({
   token,
   orgName,
+  kind = "plan",
 }: {
   token: string;
   orgName: string;
+  kind?: string;
 }) {
+  const noun = documentKindNoun(kind);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [state, setState] = useState<"idle" | "uploading" | "done" | "error">(
@@ -32,6 +36,7 @@ export default function UploadForm({
       const fd = new FormData();
       fd.append("file", file);
       fd.append("token", token);
+      fd.append("kind", kind);
       if (name.trim()) fd.append("uploaderName", name.trim());
       const res = await fetch("/api/portal/phase0/plan", {
         method: "POST",
@@ -53,11 +58,11 @@ export default function UploadForm({
           <Check className="h-7 w-7" strokeWidth={2.25} />
         </span>
         <h1 className="mt-5 font-display text-2xl font-semibold tracking-tight text-ink">
-          Thank you. Your policies were received.
+          Thank you. It was received.
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-          AALB now has {orgName}&apos;s language access policies for review. You can
-          close this page.
+          AALB now has {orgName}&apos;s {noun} for review. You can close this
+          page.
         </p>
       </div>
     );
@@ -66,7 +71,7 @@ export default function UploadForm({
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-        Upload {orgName}&apos;s language access policies
+        Upload {orgName}&apos;s {noun}
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
         AALB reviews this as part of {orgName}&apos;s standards. A PDF, Word
@@ -125,7 +130,7 @@ export default function UploadForm({
           disabled={state === "uploading" || !file}
           className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-950 disabled:opacity-60"
         >
-          {state === "uploading" ? "Uploading..." : "Upload policies"}
+          {state === "uploading" ? "Uploading..." : "Send to AALB"}
         </button>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/appSession";
 import { prisma } from "@/lib/db";
 import { withDbRetry } from "@/lib/dbRetry";
 import type { Phase0Answers } from "@/lib/phase0";
+import { seedAnswersFromConfig, sanitizePhase0Config } from "@/lib/phase0Config";
 import Phase0Wizard from "./Phase0Wizard";
 import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
 
@@ -23,7 +24,12 @@ export default async function Phase0Page() {
   const org = await withDbRetry("portal.phase0.page", () =>
     prisma.organization.findUnique({
       where: { id: user.organizationId as string },
-      select: { name: true, phase0Status: true, phase0Answers: true },
+      select: {
+        name: true,
+        phase0Status: true,
+        phase0Answers: true,
+        phase0Config: true,
+      },
     })
   );
   if (!org) redirect("/portal");
@@ -37,20 +43,30 @@ export default async function Phase0Page() {
     return <SubmittedView orgName={org.name} />;
   }
 
-  const initialAnswers = (org.phase0Answers ?? {}) as Phase0Answers;
+  // Seed the questionnaire with what AALB pre-configured, then let any saved
+  // answers win: once the manager has touched a field, their value stands.
+  const config = sanitizePhase0Config(org.phase0Config);
+  const initialAnswers: Phase0Answers = {
+    ...seedAnswersFromConfig(config),
+    ...((org.phase0Answers ?? {}) as Phase0Answers),
+  };
 
-  // The most recent language access plan on file, if any, so the wizard can show
-  // "Received: ..." on the plan step across reloads. This lookup must never block
-  // the questionnaire: if the table is missing (a migration not yet applied) or
-  // the query fails, fall back to "no document" instead of crashing the page.
-  let planDoc: { filename: string } | null = null;
+  // The most recent document on file per kind, so the wizard can show
+  // "Received: ..." on each document step across reloads. This lookup must never
+  // block the questionnaire: if the table is missing (a migration not yet
+  // applied) or the query fails, fall back to an empty map instead of crashing.
+  const docsByKind: Record<string, string> = {};
   try {
     await ensurePlanDocumentTable();
-    planDoc = await prisma.planDocument.findFirst({
+    const docs = await prisma.planDocument.findMany({
       where: { organizationId: user.organizationId as string },
       orderBy: { createdAt: "desc" },
-      select: { filename: true },
+      select: { filename: true, kind: true },
     });
+    // Newest-first, so the first filename seen for a kind is the latest.
+    for (const d of docs) {
+      if (!(d.kind in docsByKind)) docsByKind[d.kind] = d.filename;
+    }
   } catch (e) {
     console.error("[portal] phase0 plan-doc lookup failed (continuing):", e);
   }
@@ -59,7 +75,9 @@ export default async function Phase0Page() {
     <Phase0Wizard
       orgName={org.name}
       initialAnswers={initialAnswers}
-      planDoc={planDoc?.filename ?? null}
+      docsByKind={docsByKind}
+      config={config}
+      status={org.phase0Status}
     />
   );
 }

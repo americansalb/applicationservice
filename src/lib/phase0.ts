@@ -14,10 +14,15 @@ import {
   type Aggregate,
   type AggregatedLanguage,
 } from "./metroData";
+import type { Phase0Config } from "./phase0Config";
 
 export type Phase0Answers = Record<string, unknown>;
 
-export type Phase0Ctx = { orgName: string };
+// Ctx carries the org name plus what AALB pre-configured about the institution
+// (see phase0Config.ts). config lets copy and future sections tailor to the
+// sector and setting; the facts that map to questions are seeded into answers
+// up front (seedAnswersFromConfig), not read from here at render time.
+export type Phase0Ctx = { orgName: string; config?: Phase0Config };
 
 export type Phase0Status =
   | "not_started"
@@ -62,6 +67,9 @@ export type Phase0Question = {
   section: string;
   type: Phase0QuestionType;
   widget?: Phase0Widget;
+  // For a document-collection question (widget "plan"): which document kind it
+  // collects (documentKinds.ts). Defaults to "plan" (the language access plan).
+  documentKind?: string;
   prompt: string;
   help?: string;
   whyItMatters?: string;
@@ -102,6 +110,45 @@ export function footprintSlugs(a: Phase0Answers): string[] {
 }
 export function languageList(a: Phase0Answers): string[] {
   return asStringArray(a["serve.languages"]);
+}
+
+// Spoken (non-signed) languages the institution named. Drives the spoken-language
+// interpreting follow-ups, parallel to the ASL ones gated on ASL_VALUE.
+export function spokenLanguages(a: Phase0Answers): string[] {
+  return languageList(a).filter((l) => l !== ASL_VALUE);
+}
+export function hasSpokenLanguages(a: Phase0Answers): boolean {
+  return spokenLanguages(a).length > 0;
+}
+
+// Whether the institution employs its own interpreters (spoken or signed) -- the
+// people AALB assesses. Gates the "how you hire and evaluate" deep-dive: a fully
+// outsourced institution has no staff interpreters to look at.
+export function hasStaffInterpreters(a: Phase0Answers): boolean {
+  const staff = (v: unknown) => v === "staff" || v === "both";
+  return staff(a["serve.spokenSource"]) || staff(a["serve.aslSource"]);
+}
+
+// Whether the institution relies on an outside agency or service for any
+// interpreting (spoken or signed). Gates the "interpreting service you use"
+// section: AALB does not assess those interpreters, so what we look at is how the
+// institution holds the service to its bar. The spoken and signed sources name
+// the outside option differently (outside vs agency); both count. "varies, with
+// no set arrangement" and ASL "none" are intentionally left out: there is no
+// service relationship to ask about.
+export function usesOutsideAgency(a: Phase0Answers): boolean {
+  const sp = a["serve.spokenSource"];
+  const asl = a["serve.aslSource"];
+  return sp === "outside" || sp === "both" || asl === "agency" || asl === "both";
+}
+
+// Whether the institution relies on bilingual staff (employees who are not
+// interpreters) to use another language with patients, by speaking with them
+// directly or by stepping in to interpret. Gates the Pathway I detail questions.
+// "none", "unsure", and an unanswered lead leave the detail hidden.
+export function hasBilingualStaff(a: Phase0Answers): boolean {
+  const v = a["bilingual.role"];
+  return v === "direct" || v === "interpret" || v === "both";
 }
 
 // The combined language reality across every metro the institution serves.
@@ -145,7 +192,7 @@ export function needsPlanHelp(a: Phase0Answers): boolean {
 
 // The 50 states plus DC, for the legal-scope question (which states' laws AALB
 // analyzes). Distinct from the metro footprint, which drives the language picture.
-const US_STATES: Phase0Option[] = [
+export const US_STATES: Phase0Option[] = [
   { value: "AL", label: "Alabama" },
   { value: "AK", label: "Alaska" },
   { value: "AZ", label: "Arizona" },
@@ -199,10 +246,84 @@ const US_STATES: Phase0Option[] = [
   { value: "WY", label: "Wyoming" },
 ];
 
+// Section "What you're aiming for": AALB presents the scale; the institution
+// picks its target on it. These three lists back both the questionnaire (the
+// goal.* questions below) and the developer pre-config editor, so the seedable
+// values and the rendered options never drift. phase0Config.ts imports them to
+// build its validation sets; that one-way import (config -> engine) is why the
+// lists live here, not there.
+export const AMBITION_OPTIONS: Phase0Option[] = [
+  {
+    value: "compliance",
+    label: "Meet the standard required of us",
+    hint: "A solid, defensible program that meets the rules that apply to you.",
+  },
+  {
+    value: "beyond",
+    label: "Go a step beyond the minimum",
+    hint: "Raise the bar past the baseline where it matters most for care.",
+  },
+  {
+    value: "excellence",
+    label: "Build a center of excellence",
+    hint: "The highest standard, a model others measure against.",
+  },
+];
+
+export const CERT_GOAL_OPTIONS: Phase0Option[] = [
+  {
+    value: "required",
+    label: "Yes, we want our interpreters nationally certified",
+    hint: "Hold it, or actively work toward it.",
+  },
+  {
+    value: "valued",
+    label: "A plus, not a requirement",
+    hint: "We would value it but will not require it of everyone.",
+  },
+  {
+    value: "no",
+    label: "Not a goal for us",
+    hint: "Our own standard is enough for what we need.",
+  },
+  {
+    value: "advise",
+    label: "Not sure, advise us",
+    hint: "Help us decide whether it fits our goals.",
+  },
+];
+
+export const TRAINING_GOAL_OPTIONS: Phase0Option[] = [
+  {
+    value: "baseline",
+    label: "Everyone meets a recognized training baseline",
+    hint: "At least the standard 40-hour medical interpreter training.",
+  },
+  {
+    value: "targeted",
+    label: "Training where the assessment finds gaps",
+    hint: "Bring specific people up as results show the need.",
+  },
+  {
+    value: "measure",
+    label: "Just measure the training they already have",
+    hint: "Tell us where our people stand; we will handle training ourselves.",
+  },
+  {
+    value: "advise",
+    label: "Not sure, advise us",
+    hint: "Help us set the right training expectation.",
+  },
+];
+
 export const SECTIONS: Phase0Section[] = [
   { id: "start", title: "Getting started" },
+  { id: "goal", title: "What you're aiming for" },
   { id: "plan", title: "Your language access policies" },
   { id: "serve", title: "Who you serve" },
+  { id: "evaluate", title: "How you hire and evaluate" },
+  { id: "agencies", title: "The interpreting service you use" },
+  { id: "bilingual", title: "Bilingual staff who speak with patients" },
 ];
 
 export const QUESTIONS: Phase0Question[] = [
@@ -211,32 +332,116 @@ export const QUESTIONS: Phase0Question[] = [
     section: "start",
     type: "info",
     prompt: "Build your Written Standards Documentation",
+    dynamicContent: (_a, ctx) => {
+      const cfg = ctx.config;
+      const hasSeed = !!(
+        cfg &&
+        (cfg.federalFunding ||
+          (cfg.states?.length ?? 0) > 0 ||
+          (cfg.languages?.length ?? 0) > 0 ||
+          (cfg.metros?.length ?? 0) > 0)
+      );
+      // When AALB has pre-filled known facts, tell the manager up front so the
+      // pre-selected answers read as a head start to confirm, not a mystery.
+      const seedNote: Phase0InfoBlock[] = hasSeed
+        ? [
+            {
+              kind: "note",
+              text: `We have already filled in what AALB knows about ${ctx.orgName} from your engagement, like the languages and places you serve. Look it over and change anything that is not right.`,
+            },
+          ]
+        : [];
+      return {
+        heading: "Let's set your institutional standards",
+        intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter and bilingual staff member at ${ctx.orgName}, valid for two years.`,
+        blocks: [
+          {
+            kind: "paragraph",
+            text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings your team is tested in, the benchmarks you set, and how performance is scored. By the end, you will have defined what qualified means here.",
+          },
+          {
+            kind: "paragraph",
+            text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
+          },
+          ...seedNote,
+          {
+            kind: "expect",
+            items: [
+              { label: "Thorough by design", text: "It asks real questions about real care." },
+              { label: "Saved as you go", text: "Step away and pick up where you left off." },
+              { label: "Becomes your standard", text: "AALB finalizes it, then your interpreters begin." },
+            ],
+          },
+          {
+            kind: "fineprint",
+            text: "By continuing, you accept our terms of use. This gathers information to set your assessment standard and is not legal advice.",
+          },
+        ],
+      };
+    },
+  },
+  // -- Section: What you're aiming for ---------------------------------------
+  // AALB was hired to tell the institution the scale and where their people
+  // land on it. goal.scale presents that scale; the next three capture the
+  // institution's target on it (their answer, not ours). Each teaches as it
+  // asks, and every option is framed so the honest answer is never the lesser
+  // one.
+  {
+    id: "goal.scale",
+    section: "goal",
+    type: "info",
+    prompt: "The scale we measure against",
     dynamicContent: (_a, ctx) => ({
-      heading: "Let's set your institutional standards",
-      intro: `Phase 0 produces your Written Standards Documentation: the custom benchmark AALB uses to assess every interpreter and bilingual staff member at ${ctx.orgName}, valid for two years.`,
+      heading: "The scale we measure against",
+      intro: `Before you set your goal, here is the scale every interpreter at ${ctx.orgName} is measured on, and where we draw the line.`,
       blocks: [
         {
           kind: "paragraph",
-          text: "This is not a generic form. Each answer configures a real part of the assessment: which languages we build a standard for, the clinical settings your team is tested in, the benchmarks you set, and how performance is scored. By the end, you will have defined what qualified means here.",
+          text: "We rate interpreting proficiency on a single scale, and our floor for certification is 3+. An interpreter at that level carries a complex clinical conversation accurately and completely, in both directions, under real conditions, without simplifying the medicine or leaving anything out. That is the floor for our stamp of approval.",
         },
         {
           kind: "paragraph",
-          text: "It saves as you go, so you can step away and come back. A few questions are meant to make explicit what is easy to leave unspoken, like where a bilingual staff member's role should stop. There are no wrong answers.",
+          text: "Above that floor, two things separate a strong language access program from a great one: whether your interpreters hold national certification, and how much training stands behind them. The next three questions ask how far you want to take each.",
         },
         {
-          kind: "expect",
-          items: [
-            { label: "Thorough by design", text: "It asks real questions about real care." },
-            { label: "Saved as you go", text: "Step away and pick up where you left off." },
-            { label: "Becomes your standard", text: "AALB finalizes it, then your interpreters begin." },
-          ],
-        },
-        {
-          kind: "fineprint",
-          text: "By continuing, you accept our terms of use. This gathers information to set your assessment standard and is not legal advice.",
+          kind: "note",
+          text: "You set the target. We measure your interpreters and tell you exactly where they stand against it.",
         },
       ],
     }),
+  },
+  {
+    id: "goal.ambition",
+    section: "goal",
+    type: "single_select",
+    required: true,
+    prompt: "What are you aiming for with language access?",
+    help: "There is no wrong answer. Meeting the standard required of you, done well, is a real achievement. Tell us the truth and we calibrate to it.",
+    whyItMatters:
+      "Your answer sets how high we hold the bar and how we report results back to you. It is the difference between meeting the requirement and setting the example.",
+    options: AMBITION_OPTIONS,
+  },
+  {
+    id: "goal.certification",
+    section: "goal",
+    type: "single_select",
+    required: true,
+    prompt: "Do you want your interpreters to hold national certification?",
+    help: "National certification is a credential from a recognized board, earned by exam, that sits above an internal assessment. For spoken languages that means a CHI or CoreCHI from CCHI, or a CMI from the National Board of Certification for Medical Interpreters. For American Sign Language it means the NIC from the Registry of Interpreters for the Deaf.",
+    whyItMatters:
+      "Certification is portable and verified by someone other than us. It signals rigor to patients, auditors, and regulators, and it is a clear step beyond an internal benchmark.",
+    options: CERT_GOAL_OPTIONS,
+  },
+  {
+    id: "goal.training",
+    section: "goal",
+    type: "single_select",
+    required: true,
+    prompt: "How much interpreter training do you want behind your program?",
+    help: "The recognized baseline in healthcare is 40 hours of medical interpreter training: ethics, the interpreter's role, medical terminology, and managing a live encounter. It is what turns a bilingual person into an interpreter.",
+    whyItMatters:
+      "Speaking two languages is not the same as interpreting between them under pressure. Training is what makes interpreting accurate and safe, so how much you want shapes the standard we set.",
+    options: TRAINING_GOAL_OPTIONS,
   },
   // -- Section: Your language access policies --------------------------------
   {
@@ -459,6 +664,77 @@ export const QUESTIONS: Phase0Question[] = [
     whyItMatters:
       "We build a separate standard for each language you name. This is the exact list your interpreters will be assessed in, so name every language your patients actually need.",
   },
+  // -- Spoken-language interpreting (parallel to the ASL block below) ---------
+  {
+    id: "serve.spokenSource",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasSpokenLanguages(a),
+    prompt: "When a patient needs a spoken-language interpreter, who provides it?",
+    help: "Think across the spoken languages you named, like Spanish.",
+    whyItMatters:
+      "We assess the interpreters your institution employs. Knowing whether you rely on your own staff, an outside service, or both tells us who that is.",
+    options: [
+      { value: "staff", label: "Our own staff interpreters" },
+      { value: "outside", label: "An outside agency or interpreting service" },
+      { value: "both", label: "Both our staff and an outside service" },
+      { value: "varies", label: "It varies, with no set arrangement" },
+    ],
+  },
+  {
+    id: "serve.spokenMode",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasSpokenLanguages(a),
+    prompt: "How is spoken-language interpreting usually delivered?",
+    help: "If it depends on the language or setting, pick the closest.",
+    whyItMatters:
+      "In-person, phone, and video interpreting place different demands on an interpreter, so we match your standard to how yours actually work.",
+    options: [
+      { value: "inperson", label: "In person" },
+      { value: "phone", label: "Over the phone" },
+      { value: "video", label: "By video" },
+      { value: "mix", label: "A mix, depending on the situation" },
+    ],
+  },
+  {
+    id: "serve.staffLanguages",
+    section: "serve",
+    type: "multi_select",
+    required: true,
+    showIf: (a) =>
+      hasSpokenLanguages(a) &&
+      ["staff", "both"].includes(String(a["serve.spokenSource"])) &&
+      spokenLanguages(a).length > 1,
+    dynamicOptions: (a) =>
+      spokenLanguages(a).map((name) => ({ value: name, label: name })),
+    prompt: "Which of these languages do your own staff interpreters cover?",
+    help: "Pick the languages where you employ interpreters on staff. We assess those interpreters; an outside service can cover the rest.",
+    whyItMatters:
+      "These are the spoken languages we build a staff assessment for. The ones your staff cover are the ones your interpreters are tested in.",
+  },
+  {
+    id: "serve.staffCount",
+    section: "serve",
+    type: "single_select",
+    required: true,
+    showIf: (a) =>
+      hasSpokenLanguages(a) &&
+      ["staff", "both"].includes(String(a["serve.spokenSource"])),
+    prompt: "How many staff interpreters do you employ for spoken languages?",
+    help: "A rough count is fine. Count people on your payroll, not an outside agency's.",
+    whyItMatters:
+      "Your own spoken-language interpreters are the ones we assess, so we need to know how many there are.",
+    options: [
+      { value: "1-2", label: "1 to 2" },
+      { value: "3-5", label: "3 to 5" },
+      { value: "6-10", label: "6 to 10" },
+      { value: "11+", label: "11 or more" },
+      { value: "unsure", label: "Not sure" },
+    ],
+  },
   {
     id: "serve.aslMode",
     section: "serve",
@@ -524,6 +800,439 @@ export const QUESTIONS: Phase0Question[] = [
       { value: "many_daily", label: "Many times a day" },
       { value: "constant", label: "Constantly, across multiple departments" },
     ],
+  },
+
+  // -- Section: How you hire and evaluate ------------------------------------
+  // The deep-dive into the staff interpreters AALB will assess: the job
+  // description they hire against, the materials and process they evaluate with
+  // today, and what happens at hire. Shown only when the institution employs
+  // interpreters (spoken or ASL). Per-interpreter credential documents are a
+  // later phase, not collected here.
+  {
+    id: "evaluate.intro",
+    section: "evaluate",
+    type: "info",
+    prompt: "How you hire and evaluate interpreters",
+    showIf: (a) => hasStaffInterpreters(a),
+    dynamicContent: (_a, ctx) => ({
+      heading: "Now, the interpreters you employ",
+      intro: `You told us ${ctx.orgName} employs its own interpreters. This is where we learn how you bring them on and judge their skill today, so your standard builds on what you already do.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "We will ask for your interpreter job description, anything you use to evaluate interpreters, and how hiring works in practice. Share what you have; AALB can request the rest at review. There are no wrong answers, only your honest starting point.",
+        },
+        {
+          kind: "note",
+          text: "This is about your process and standards, not any one person's file. Checking individual interpreters' credentials comes later.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "evaluate.jobDesc",
+    section: "evaluate",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "job_description",
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Share the job description you hire interpreters against.",
+    help: "Upload it, email a colleague like HR a link, paste a link, or paste the text. Optional here; AALB can request it during review.",
+    whyItMatters:
+      "Your job description is the bar you set today. We read it to see what you already expect, then build the assessment on top of it.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "evaluate.proficiencyAtHire",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "At hire, how do you check an interpreter's language proficiency?",
+    whyItMatters:
+      "This tells us whether skill is verified today or assumed, which is exactly the gap our assessment closes.",
+    options: [
+      { value: "formal", label: "A formal language or interpreting test" },
+      { value: "informal", label: "An informal conversation or interview" },
+      { value: "credentials", label: "We rely on their resume or credentials" },
+      { value: "none", label: "We do not check proficiency at hire" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "evaluate.credentialAtHire",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Do you require any credential or training to interpret for you?",
+    whyItMatters:
+      "It shows the floor you set today, and how far it is from the standard you are aiming for.",
+    options: [
+      { value: "national", label: "National certification" },
+      {
+        value: "training",
+        label: "A medical interpreter training course, like the 40-hour standard",
+      },
+      { value: "internal", label: "Our own internal training or check" },
+      { value: "none", label: "No requirement" },
+      { value: "varies", label: "It varies" },
+    ],
+  },
+  {
+    id: "evaluate.whoEvaluates",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Today, who judges an interpreter's skill when you hire?",
+    help: "Whoever actually decides the person can interpret well enough.",
+    whyItMatters:
+      "Whether someone who shares the language assesses skill is the difference between a real check and a guess.",
+    options: [
+      {
+        value: "qualified",
+        label: "A qualified bilingual evaluator or senior interpreter",
+      },
+      { value: "managerLang", label: "A manager who speaks the language" },
+      {
+        value: "managerNoLang",
+        label: "A manager who does not speak the language",
+      },
+      { value: "outside", label: "An outside service" },
+      { value: "none", label: "No one evaluates skill formally" },
+    ],
+  },
+  {
+    id: "evaluate.ongoing",
+    section: "evaluate",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "After hire, is an interpreter's skill ever checked again?",
+    whyItMatters:
+      "Skills drift. Knowing whether you re-check tells us if your standard needs an ongoing component.",
+    options: [
+      { value: "regular", label: "Yes, on a regular schedule" },
+      { value: "complaint", label: "Only if there is a complaint" },
+      { value: "no", label: "No" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "evaluate.materials",
+    section: "evaluate",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "evaluation_material",
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Share any rubrics, checklists, or tests you use to evaluate interpreters.",
+    help: "Upload, email a link, paste a link, or paste the text. Optional.",
+    whyItMatters:
+      "If you already evaluate interpreters, we build on your tools instead of replacing them.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "evaluate.qa",
+    section: "evaluate",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "qa_record",
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Share any interpreter quality or QA records you keep.",
+    help: "Upload, email a link, paste a link, or paste the text. Optional.",
+    whyItMatters:
+      "Your quality records show how interpreting performs in real encounters, not just at hire.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "evaluate.process",
+    section: "evaluate",
+    type: "long_text",
+    reflective: true,
+    required: false,
+    showIf: (a) => hasStaffInterpreters(a),
+    prompt: "Walk us through what happens when you bring on a new interpreter, from interview to first patient.",
+    help: "A few sentences is plenty.",
+    whyItMatters:
+      "The real process, in your words, often reveals what a form cannot.",
+    placeholder: "What happens in the interview, who is involved, what you check.",
+    maxLength: 2000,
+  },
+
+  // -- Section: The interpreting service you use -----------------------------
+  // The other half of the standard: the outside interpreters the institution
+  // relies on. AALB does not assess agency interpreters, so what matters is how
+  // the institution holds the service to its bar. Shown when spoken or signed
+  // interpreting comes from an outside agency or service (usesOutsideAgency).
+  {
+    id: "agencies.intro",
+    section: "agencies",
+    type: "info",
+    prompt: "The interpreters you bring in from outside",
+    showIf: (a) => usesOutsideAgency(a),
+    dynamicContent: (_a, ctx) => ({
+      heading: "The interpreters you bring in from outside",
+      intro: `You told us ${ctx.orgName} uses an outside agency or service for some interpreting. AALB does not assess those interpreters directly, so what we look at is how you make sure the people they send are qualified.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "A few quick questions about what you require of the service and how you keep an eye on quality. This is the other half of your standard: the interpreters you employ, and the ones you bring in from outside.",
+        },
+        {
+          kind: "note",
+          text: "Using an outside service is a sound choice, especially for languages you see rarely. The standard simply expects you to hold that service to the same bar you set for your own people.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "agencies.who",
+    section: "agencies",
+    type: "short_text",
+    required: false,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "Which outside interpreting service or agency do you use?",
+    help: "A name is enough. If you use more than one, list the main ones.",
+    whyItMatters:
+      "Knowing the service lets us account for the credentials and quality standards it already holds, so your standard builds on them.",
+    placeholder: "e.g. LanguageLine, Martti, or a local agency",
+    maxLength: 300,
+  },
+  {
+    id: "agencies.requirement",
+    section: "agencies",
+    type: "single_select",
+    required: true,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "What do you require the service's interpreters to hold?",
+    whyItMatters:
+      "This is the floor you set for interpreters you do not employ. It tells us whether your outside coverage meets the same bar as your own staff.",
+    options: [
+      { value: "national", label: "National certification" },
+      {
+        value: "training",
+        label: "A medical interpreter training course, like the 40-hour standard",
+      },
+      {
+        value: "qualified",
+        label: "Qualified medical interpreters, without naming a specific credential",
+      },
+      { value: "none", label: "We do not set a requirement; we trust the service" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "agencies.assurance",
+    section: "agencies",
+    type: "single_select",
+    required: true,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "How do you know the interpreters they send actually meet that bar?",
+    help: "Whatever happens in practice, even if it is mostly trust.",
+    whyItMatters:
+      "The difference between a requirement on paper and one that is checked is exactly what your standard makes explicit.",
+    options: [
+      {
+        value: "contract",
+        label: "It is written into our contract and the service certifies it",
+      },
+      {
+        value: "verify",
+        label: "We check or spot-check their credentials ourselves",
+      },
+      { value: "trust", label: "We rely on the service's word" },
+      { value: "none", label: "We do not verify it" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "agencies.oversight",
+    section: "agencies",
+    type: "single_select",
+    required: true,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "Once interpreting is happening, how do you keep an eye on quality?",
+    whyItMatters:
+      "Skills and services drift. Knowing whether you review quality tells us if your standard needs an ongoing check on outside interpreting too.",
+    options: [
+      {
+        value: "review",
+        label: "We review the service's quality on a regular basis",
+      },
+      { value: "reports", label: "The service sends us quality or usage reports" },
+      { value: "complaint", label: "Only when there is a complaint" },
+      { value: "none", label: "No formal oversight" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "agencies.agreement",
+    section: "agencies",
+    type: "short_text",
+    widget: "plan",
+    documentKind: "service_agreement",
+    required: false,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "Share your contract or service agreement with that service.",
+    help: "Upload it, email whoever handles your contracts a link, paste a link, or paste the text. Optional.",
+    whyItMatters:
+      "Your agreement is where the qualification and quality terms usually live. We read it to see what you have already committed the service to.",
+    placeholder: "https://",
+    maxLength: 500,
+  },
+  {
+    id: "agencies.process",
+    section: "agencies",
+    type: "long_text",
+    reflective: true,
+    required: false,
+    showIf: (a) => usesOutsideAgency(a),
+    prompt: "When a patient needs a language you cover through the service, walk us through what happens.",
+    help: "A few sentences is plenty.",
+    whyItMatters:
+      "The real process, in your words, often shows how fast and how reliably an outside interpreter actually reaches the bedside.",
+    placeholder: "Who places the request, how the interpreter joins, in person or by phone or video.",
+    maxLength: 2000,
+  },
+
+  // -- Section: Bilingual staff who speak with patients ----------------------
+  // Pathway I: employees who are not interpreters but use a non-English language
+  // with patients, by speaking with them directly or by stepping in to
+  // interpret. The start intro promises the standard covers bilingual staff and
+  // makes explicit where their role should stop; this section delivers on that.
+  // The lead (intro + role) shows whenever spoken languages are named; the detail
+  // follows when bilingual staff are actually used (hasBilingualStaff).
+  {
+    id: "bilingual.intro",
+    section: "bilingual",
+    type: "info",
+    prompt: "The staff who speak a patient's language",
+    showIf: (a) => hasSpokenLanguages(a),
+    dynamicContent: (_a, ctx) => ({
+      heading: "The staff who speak a patient's language",
+      intro: `Beyond interpreters, ${ctx.orgName} almost certainly has nurses, front-desk staff, and others who speak a second language and use it with patients. They are part of your standard too.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "There are two very different things a bilingual employee can do. They can speak with a patient directly in that patient's language, the way any provider speaks with any patient. Or they can interpret, carrying another clinician's words back and forth. Interpreting is a separate skill, and it is where informal help most often goes wrong.",
+        },
+        {
+          kind: "note",
+          text: "Speaking a language at home is not the same as handling a clinical conversation in it. A few questions here let us set where a bilingual staff member's role should stop, and a qualified interpreter should begin.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "bilingual.role",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasSpokenLanguages(a),
+    prompt: "How do bilingual staff use their languages with patients today?",
+    help: "Think of staff whose main job is not interpreting, like a bilingual nurse or receptionist.",
+    whyItMatters:
+      "This is the line your standard has to draw. Speaking with a patient directly and interpreting for someone else are different skills, and we set a different bar for each.",
+    options: [
+      {
+        value: "direct",
+        label: "They speak with patients directly in the patient's language",
+      },
+      {
+        value: "interpret",
+        label: "They step in to interpret between a provider and a patient",
+      },
+      { value: "both", label: "Both, depending on the situation" },
+      {
+        value: "none",
+        label: "They do not; only interpreters use other languages with patients",
+      },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "bilingual.languages",
+    section: "bilingual",
+    type: "multi_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a) && spokenLanguages(a).length > 1,
+    dynamicOptions: (a) =>
+      spokenLanguages(a).map((name) => ({ value: name, label: name })),
+    prompt: "Which languages do your bilingual staff use with patients?",
+    help: "Pick the languages where staff who are not interpreters speak with patients.",
+    whyItMatters:
+      "These are the languages where your standard has to account for direct staff communication, not just interpreting.",
+  },
+  {
+    id: "bilingual.proficiency",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "Has anyone confirmed these staff speak the language well enough for patient care?",
+    whyItMatters:
+      "A staff member who is comfortable chatting may still miss a dosage or a symptom under pressure. Whether their language has been checked is exactly what a proficiency assessment settles.",
+    options: [
+      { value: "tested", label: "Yes, with a formal language proficiency test" },
+      { value: "informal", label: "Informally, by a manager or colleague" },
+      { value: "selfreport", label: "We rely on their own word that they are fluent" },
+      { value: "no", label: "No, it has not been checked" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "bilingual.boundary",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "Is there a clear line for when staff must bring in a qualified interpreter instead?",
+    help: "For example, consent, a new diagnosis, or anything high-stakes.",
+    whyItMatters:
+      "Where a bilingual staff member's role should stop is one of the things this standard makes explicit. Without a line, the hardest conversations are the ones most likely to go uninterpreted.",
+    options: [
+      { value: "clear", label: "Yes, and staff know where it is" },
+      { value: "informal", label: "Roughly, but it is not written down" },
+      { value: "no", label: "No, it is decided in the moment" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "bilingual.assess",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "Would you like AALB to assess your bilingual staff's language proficiency?",
+    help: "This is a separate track from interpreter assessment, focused on safe direct communication.",
+    whyItMatters:
+      "It tells us whether to build your standard for your bilingual staff as well as your interpreters, so everyone who speaks with patients is held to a known bar.",
+    options: [
+      { value: "yes", label: "Yes, include them in our standard" },
+      { value: "maybe", label: "Maybe, we would like to know more" },
+      { value: "no", label: "No, just our interpreters for now" },
+    ],
+  },
+  {
+    id: "bilingual.process",
+    section: "bilingual",
+    type: "long_text",
+    reflective: true,
+    required: false,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "When a bilingual staff member helps a patient in another language, what does that usually look like?",
+    help: "A few sentences is plenty.",
+    whyItMatters:
+      "The everyday reality, in your words, shows us how often direct communication and informal interpreting actually happen.",
+    placeholder: "Who steps in, for what kinds of visits, and when they would call an interpreter instead.",
+    maxLength: 2000,
   },
 ];
 

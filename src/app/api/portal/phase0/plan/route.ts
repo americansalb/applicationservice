@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { verifyPlanUploadToken } from "@/lib/planUpload";
 import { validateFileContent } from "@/lib/fileMagic";
 import { ensurePlanDocumentTable } from "@/lib/ensurePlanTable";
+import { coerceDocumentKind, documentKindLabel } from "@/lib/documentKinds";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,6 +19,7 @@ export const runtime = "nodejs";
 // is validated by size, declared type, and magic bytes, then stored in the
 // database. Mirrors the partners intake file handling.
 const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_TEXT_CHARS = 100_000; // pasted text, stored as a text/plain document
 const ALLOWED_MIMES = new Set([
   "application/pdf",
   "application/msword",
@@ -37,11 +39,20 @@ export async function POST(req: NextRequest) {
 
     const form = await req.formData();
     const file = form.get("file");
+    const text = form.get("text");
     const token = form.get("token");
     const uploaderNameRaw = form.get("uploaderName");
+    const kind = coerceDocumentKind(form.get("kind"));
 
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "No file provided." }, { status: 400 });
+    // Two ways to provide the document: upload a file, or paste its text (stored
+    // as a text/plain document so AALB reviews it the same way).
+    const hasFile = file instanceof File;
+    const hasText = typeof text === "string" && text.trim().length > 0;
+    if (!hasFile && !hasText) {
+      return NextResponse.json(
+        { error: "No file or text provided." },
+        { status: 400 }
+      );
     }
 
     // Resolve the organization either from a signed upload link (a colleague,
@@ -89,27 +100,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (file.size > MAX_BYTES) {
-      return NextResponse.json(
-        { error: "File too large (max 25MB)." },
-        { status: 400 }
-      );
-    }
-    if (!ALLOWED_MIMES.has(file.type)) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Use PDF, Word, PNG, or JPG." },
-        { status: 400 }
-      );
-    }
-    const buffer = Buffer.from(await file.arrayBuffer());
-    if (!validateFileContent(buffer, file.type)) {
-      return NextResponse.json(
-        {
-          error:
-            "File content does not match its type. It may be corrupted or misnamed.",
-        },
-        { status: 400 }
-      );
+    // Build the bytes from either the uploaded file (validated by size, declared
+    // type, and magic bytes) or the pasted text (trusted UTF-8 we synthesize).
+    let buffer: Buffer<ArrayBuffer>;
+    let filename: string;
+    let mimeType: string;
+    if (hasFile) {
+      const f = file as File;
+      if (f.size > MAX_BYTES) {
+        return NextResponse.json(
+          { error: "File too large (max 25MB)." },
+          { status: 400 }
+        );
+      }
+      if (!ALLOWED_MIMES.has(f.type)) {
+        return NextResponse.json(
+          { error: "Unsupported file type. Use PDF, Word, PNG, or JPG." },
+          { status: 400 }
+        );
+      }
+      buffer = Buffer.from(await f.arrayBuffer());
+      if (!validateFileContent(buffer, f.type)) {
+        return NextResponse.json(
+          {
+            error:
+              "File content does not match its type. It may be corrupted or misnamed.",
+          },
+          { status: 400 }
+        );
+      }
+      filename = f.name.slice(0, 300);
+      mimeType = f.type;
+    } else {
+      const pasted = (text as string).trim().slice(0, MAX_TEXT_CHARS);
+      buffer = Buffer.from(pasted, "utf8");
+      filename = `${documentKindLabel(kind)} (pasted).txt`;
+      mimeType = "text/plain";
     }
 
     const uploaderName =
@@ -137,18 +163,19 @@ export async function POST(req: NextRequest) {
       prisma.planDocument.create({
         data: {
           organizationId: orgId as string,
-          filename: file.name.slice(0, 300),
-          mimeType: file.type,
-          sizeBytes: file.size,
+          filename,
+          mimeType,
+          sizeBytes: buffer.length,
           content: buffer,
           uploadedVia,
           uploaderName,
+          kind,
         },
         select: { id: true },
       })
     );
 
-    return NextResponse.json({ ok: true, filename: file.name });
+    return NextResponse.json({ ok: true, filename });
   } catch (e) {
     console.error("portal phase0 plan upload error:", e);
     const connectivity = isConnectivityError(e);

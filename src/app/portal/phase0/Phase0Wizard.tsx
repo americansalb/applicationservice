@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ArrowRight, LogOut, Search, X, Plus } from "lucide-react";
+import { Check, ChevronLeft, ArrowRight, LogOut } from "lucide-react";
 import PlanCollect from "./PlanCollect";
+import { StatePicker, MetroPicker, LanguagePicker } from "./pickers";
 import {
   visibleQuestions,
   resolveOptions,
@@ -15,34 +16,43 @@ import {
   languageList,
   localSuggestions,
   missingLocalLanguages,
-  ASL_VALUE,
   type Phase0Answers,
   type Phase0Question,
   type Phase0Info,
   type Phase0InfoBlock,
 } from "@/lib/phase0";
-import {
-  searchMetros,
-  getMetroProfile,
-  LANGUAGE_CATALOG,
-} from "@/lib/metroData";
+import type { Phase0Config } from "@/lib/phase0Config";
 
 const AUTOSAVE_DEBOUNCE_MS = 1200;
 
 export default function Phase0Wizard({
   orgName,
   initialAnswers,
-  planDoc = null,
+  docsByKind = {},
+  config,
+  status,
 }: {
   orgName: string;
   initialAnswers: Phase0Answers;
-  planDoc?: string | null;
+  docsByKind?: Record<string, string>;
+  config?: Phase0Config;
+  status?: string;
 }) {
   const router = useRouter();
-  const ctx = useMemo(() => ({ orgName }), [orgName]);
+  const ctx = useMemo(() => ({ orgName, config }), [orgName, config]);
 
   const [answers, setAnswers] = useState<Phase0Answers>(initialAnswers || {});
-  const [index, setIndex] = useState(0);
+  // Resume where the manager left off: a returning, in-progress questionnaire
+  // opens at the first required question they have not answered yet, instead of
+  // restarting at the intro. A fresh start (or a finished one) opens at step one.
+  const [index, setIndex] = useState(() => {
+    if (status !== "in_progress") return 0;
+    const a = initialAnswers || {};
+    const i = visibleQuestions(a, ctx).findIndex(
+      (q) => q.type !== "info" && q.required && !isAnswered(q, a)
+    );
+    return i >= 0 ? i : 0;
+  });
   const [error, setError] = useState("");
   const [finishing, setFinishing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -52,6 +62,8 @@ export default function Phase0Wizard({
   const savingRef = useRef(false);
   const pendingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
 
   const doSave = useCallback(async (): Promise<void> => {
     if (savingRef.current) {
@@ -69,10 +81,21 @@ export default function Phase0Wizard({
         body: JSON.stringify({ answers: answersRef.current, submit: false }),
       });
       if (!res.ok) throw new Error("save failed");
+      retryCountRef.current = 0;
       setSaveState("saved");
     } catch {
       dirtyRef.current = true;
       setSaveState("error");
+      // Recover on its own from a dropped request or a brief outage, backing off
+      // each time, so a transient failure does not sit and wait for a keystroke.
+      if (retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(
+          () => void doSave(),
+          1000 * 2 ** retryCountRef.current
+        );
+      }
     } finally {
       savingRef.current = false;
       if (pendingRef.current) {
@@ -96,6 +119,13 @@ export default function Phase0Wizard({
     if (dirtyRef.current) void doSave();
   }, [doSave]);
 
+  const retryNow = useCallback(() => {
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    dirtyRef.current = true;
+    void doSave();
+  }, [doSave]);
+
   useEffect(() => {
     const handler = () => {
       if (!dirtyRef.current) return;
@@ -114,6 +144,7 @@ export default function Phase0Wizard({
     return () => {
       window.removeEventListener("beforeunload", handler);
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, []);
 
@@ -218,6 +249,21 @@ export default function Phase0Wizard({
     router.push("/portal");
   }, [flushSave, router]);
 
+  // Enter advances on screens with nothing to type, so the keyboard alone can
+  // carry the manager through the briefing and the single-choice questions.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey) return;
+      if ((e.target as HTMLElement | null)?.tagName === "TEXTAREA") return;
+      if (current && (current.type === "info" || current.type === "single_select")) {
+        e.preventDefault();
+        goNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current, goNext]);
+
   if (!current) return null;
 
   const nonInfo = steps.filter((s) => s.type !== "info");
@@ -241,7 +287,7 @@ export default function Phase0Wizard({
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <SaveStatus state={saveState} />
+          <SaveStatus state={saveState} onRetry={retryNow} />
           <button
             onClick={exit}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-faint transition hover:text-ink"
@@ -265,7 +311,7 @@ export default function Phase0Wizard({
 
           {current.type === "info" ? renderInfo(resolveInfo(current, answers, ctx)) : renderQuestion()}
 
-          {error && <p className="mt-4 text-sm font-medium text-clay-600">{error}</p>}
+          {error && <p role="alert" className="mt-4 text-sm font-medium text-clay-600">{error}</p>}
         </div>
       </main>
 
@@ -316,10 +362,12 @@ export default function Phase0Wizard({
 
   function renderControl(q: Phase0Question) {
     if (q.widget === "plan") {
+      const kind = q.documentKind ?? "plan";
       return (
         <PlanCollect
           orgName={orgName}
-          initialDoc={planDoc}
+          kind={kind}
+          initialDoc={docsByKind[kind] ?? null}
           linkValue={(answers[q.id] as string) ?? ""}
           onLinkChange={(v) => onText(q, v)}
         />
@@ -360,7 +408,7 @@ export default function Phase0Wizard({
       const opts = resolveOptions(q, answers, ctx);
       const value = answers[q.id];
       return (
-        <div className="space-y-2.5">
+        <div role="radiogroup" aria-label={q.prompt} className="space-y-2.5">
           {opts.map((o) => (
             <OptionRow
               key={o.value}
@@ -378,7 +426,7 @@ export default function Phase0Wizard({
       const opts = resolveOptions(q, answers, ctx);
       const arr = asArr(answers[q.id]);
       return (
-        <div className="space-y-2.5">
+        <div role="group" aria-label={q.prompt} className="space-y-2.5">
           {opts.map((o) => (
             <OptionRow
               key={o.value}
@@ -396,6 +444,7 @@ export default function Phase0Wizard({
       return (
         <input
           type="text"
+          aria-label={q.prompt}
           value={(answers[q.id] as string) ?? ""}
           onChange={(e) => onText(q, e.target.value)}
           placeholder={q.placeholder}
@@ -407,6 +456,7 @@ export default function Phase0Wizard({
     if (q.type === "long_text") {
       return (
         <textarea
+          aria-label={q.prompt}
           value={(answers[q.id] as string) ?? ""}
           onChange={(e) => onText(q, e.target.value)}
           placeholder={q.placeholder}
@@ -451,307 +501,8 @@ export default function Phase0Wizard({
   }
 }
 
-// ---------------------------------------------------------------------------
-// Searchable state picker (legal-scope question).
-// ---------------------------------------------------------------------------
-
-function StatePicker({
-  options,
-  selected,
-  onAdd,
-  onRemove,
-}: {
-  options: { value: string; label: string }[];
-  selected: string[];
-  onAdd: (v: string) => void;
-  onRemove: (v: string) => void;
-}) {
-  const [q, setQ] = useState("");
-  const sel = new Set(selected);
-  const labelFor = (v: string) =>
-    options.find((o) => o.value === v)?.label ?? v;
-  const query = q.trim().toLowerCase();
-  const results = options
-    .filter((o) => !sel.has(o.value))
-    .filter((o) => !query || o.label.toLowerCase().includes(query));
-
-  return (
-    <div>
-      {selected.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {selected.map((v) => (
-            <span
-              key={v}
-              className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 py-1 pl-3 pr-1.5 text-sm font-medium text-teal-900 ring-1 ring-inset ring-teal-700/15"
-            >
-              {labelFor(v)}
-              <button
-                onClick={() => onRemove(v)}
-                className="rounded-full p-0.5 text-teal-700/70 transition hover:bg-teal-700/10 hover:text-teal-900"
-                aria-label={`Remove ${labelFor(v)}`}
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search states"
-          className="w-full rounded-xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
-        />
-      </div>
-
-      <div className="mt-1.5 max-h-72 space-y-1.5 overflow-auto">
-        {results.map((o) => (
-          <button
-            key={o.value}
-            onClick={() => {
-              onAdd(o.value);
-              setQ("");
-            }}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-left transition hover:border-teal-500/60 hover:bg-zinc-50"
-          >
-            <span className="text-[15px] text-ink">{o.label}</span>
-            <Plus className="h-4 w-4 text-teal-700" strokeWidth={2} />
-          </button>
-        ))}
-        {results.length === 0 && (
-          <p className="px-1 py-2 text-sm text-ink-faint">No match.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Searchable footprint picker (metros).
-// ---------------------------------------------------------------------------
-
-function MetroPicker({
-  selected,
-  onAdd,
-  onRemove,
-}: {
-  selected: string[];
-  onAdd: (slug: string) => void;
-  onRemove: (slug: string) => void;
-}) {
-  const [q, setQ] = useState("");
-  const sel = new Set(selected);
-  const results = searchMetros(q, 8).filter((m) => !sel.has(m.slug));
-
-  return (
-    <div>
-      {selected.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {selected.map((slug) => {
-            const name = getMetroProfile(slug)?.name ?? slug;
-            return (
-              <span
-                key={slug}
-                className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 py-1 pl-3 pr-1.5 text-sm font-medium text-teal-900 ring-1 ring-inset ring-teal-700/15"
-              >
-                {name}
-                <button
-                  onClick={() => onRemove(slug)}
-                  className="rounded-full p-0.5 text-teal-700/70 transition hover:bg-teal-700/10 hover:text-teal-900"
-                  aria-label={`Remove ${name}`}
-                >
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by city or state, like Houston or NJ"
-          className="w-full rounded-xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
-        />
-      </div>
-
-      <p className="mt-2 px-1 text-xs text-ink-faint">
-        {q.trim() ? "Matching metro areas" : "Largest metro areas, or search above"}
-      </p>
-      <div className="mt-1.5 max-h-72 space-y-1.5 overflow-auto">
-        {results.map((m) => (
-          <button
-            key={m.slug}
-            onClick={() => {
-              onAdd(m.slug);
-              setQ("");
-            }}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-left transition hover:border-teal-500/60 hover:bg-zinc-50"
-          >
-            <span className="text-[15px] text-ink">{m.name}</span>
-            <span className="flex items-center gap-2 text-xs text-ink-faint">
-              {m.lepTotal != null && <span>{formatCount(m.lepTotal)} LEP</span>}
-              <Plus className="h-4 w-4 text-teal-700" strokeWidth={2} />
-            </span>
-          </button>
-        ))}
-        {results.length === 0 && (
-          <p className="px-1 py-2 text-sm text-ink-faint">
-            No match. Try a nearby larger city, or continue and tell us in the notes.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Searchable language picker, with local suggestions and an inline gap prompt.
-// ---------------------------------------------------------------------------
-
-function LanguagePicker({
-  selected,
-  suggestions,
-  missingCount,
-  onToggle,
-  onAdd,
-  onRemove,
-}: {
-  selected: string[];
-  suggestions: string[];
-  missingCount: number;
-  onToggle: (name: string) => void;
-  onAdd: (name: string) => void;
-  onRemove: (name: string) => void;
-}) {
-  const [q, setQ] = useState("");
-  const sel = new Set(selected);
-
-  // Local suggestions plus ASL (not in ACS spoken data), de-duplicated.
-  const suggestionRow = useMemo(() => {
-    const out: string[] = [];
-    const seen = new Set<string>();
-    for (const n of [...suggestions, ASL_VALUE]) {
-      if (!seen.has(n)) {
-        seen.add(n);
-        out.push(n);
-      }
-    }
-    return out;
-  }, [suggestions]);
-
-  const catalog = useMemo(() => [ASL_VALUE, ...LANGUAGE_CATALOG], []);
-  const query = q.trim().toLowerCase();
-  const results = query
-    ? catalog.filter((n) => n.toLowerCase().includes(query) && !sel.has(n)).slice(0, 8)
-    : [];
-
-  return (
-    <div>
-      <div className="mb-4">
-        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-          Your languages {selected.length > 0 && `(${selected.length})`}
-        </p>
-        {selected.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {selected.map((name) => (
-              <span
-                key={name}
-                className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 py-1 pl-3 pr-1.5 text-sm font-medium text-teal-900 ring-1 ring-inset ring-teal-700/15"
-              >
-                {name}
-                <button
-                  onClick={() => onRemove(name)}
-                  className="rounded-full p-0.5 text-teal-700/70 transition hover:bg-teal-700/10 hover:text-teal-900"
-                  aria-label={`Remove ${name}`}
-                >
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-ink-faint">None yet. Add from the suggestions or search below.</p>
-        )}
-      </div>
-
-      {suggestionRow.length > 0 && (
-        <div className="mb-4">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-            Common where you serve
-          </p>
-          {missingCount > 0 && (
-            <p className="mb-2 text-sm text-clay-700">
-              A few common local languages are not on your list yet. Tap to add them.
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {suggestionRow.map((name) => {
-              const on = sel.has(name);
-              return (
-                <button
-                  key={name}
-                  onClick={() => onToggle(name)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border py-1.5 pl-3 pr-3 text-sm font-medium transition ${
-                    on
-                      ? "border-teal-600 bg-teal-50 text-teal-900"
-                      : "border-zinc-300 bg-white text-ink-soft hover:border-teal-500/60 hover:bg-zinc-50"
-                  }`}
-                >
-                  {on ? (
-                    <Check className="h-3.5 w-3.5 text-teal-700" strokeWidth={2.5} />
-                  ) : (
-                    <Plus className="h-3.5 w-3.5 text-ink-faint" strokeWidth={2.5} />
-                  )}
-                  {name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search all languages, like Pashto or Karen"
-          className="w-full rounded-xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
-        />
-      </div>
-      {results.length > 0 && (
-        <div className="mt-1.5 max-h-60 space-y-1.5 overflow-auto">
-          {results.map((name) => (
-            <button
-              key={name}
-              onClick={() => {
-                onAdd(name);
-                setQ("");
-              }}
-              className="flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-left transition hover:border-teal-500/60 hover:bg-zinc-50"
-            >
-              <span className="text-[15px] text-ink">{name}</span>
-              <Plus className="h-4 w-4 text-teal-700" strokeWidth={2} />
-            </button>
-          ))}
-        </div>
-      )}
-      {query && results.length === 0 && (
-        <p className="mt-2 px-1 text-sm text-ink-faint">No language matches that search.</p>
-      )}
-    </div>
-  );
-}
+// StatePicker, MetroPicker, and LanguagePicker now live in ./pickers, shared
+// with the developer pre-configuration editor (Phase0ConfigFields).
 
 function OptionRow({
   label,
@@ -769,6 +520,8 @@ function OptionRow({
   return (
     <button
       onClick={onClick}
+      role={multi ? "checkbox" : "radio"}
+      aria-checked={selected}
       className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition ${
         selected
           ? "border-teal-600 bg-teal-50/70 ring-1 ring-teal-600"
@@ -790,14 +543,36 @@ function OptionRow({
   );
 }
 
-function SaveStatus({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
-  if (state === "idle") return null;
-  if (state === "saving") return <span className="text-xs text-ink-faint">Saving...</span>;
-  if (state === "error") return <span className="text-xs text-clay-600">Could not save</span>;
+function SaveStatus({
+  state,
+  onRetry,
+}: {
+  state: "idle" | "saving" | "saved" | "error";
+  onRetry?: () => void;
+}) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-ink-faint">
-      <Check className="h-3.5 w-3.5 text-teal-600" strokeWidth={2.5} />
-      Saved
+    <span aria-live="polite" className="inline-flex items-center gap-2 text-xs">
+      {state === "saving" && <span className="text-ink-faint">Saving...</span>}
+      {state === "saved" && (
+        <span className="inline-flex items-center gap-1 text-ink-faint">
+          <Check className="h-3.5 w-3.5 text-teal-600" strokeWidth={2.5} />
+          Saved
+        </span>
+      )}
+      {state === "error" && (
+        <>
+          <span className="text-clay-600">Could not save</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-medium text-teal-700 underline underline-offset-2 hover:text-teal-800"
+            >
+              Retry
+            </button>
+          )}
+        </>
+      )}
     </span>
   );
 }

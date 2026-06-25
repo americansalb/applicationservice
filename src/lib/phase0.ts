@@ -142,6 +142,15 @@ export function usesOutsideAgency(a: Phase0Answers): boolean {
   return sp === "outside" || sp === "both" || asl === "agency" || asl === "both";
 }
 
+// Whether the institution relies on bilingual staff (employees who are not
+// interpreters) to use another language with patients, by speaking with them
+// directly or by stepping in to interpret. Gates the Pathway I detail questions.
+// "none", "unsure", and an unanswered lead leave the detail hidden.
+export function hasBilingualStaff(a: Phase0Answers): boolean {
+  const v = a["bilingual.role"];
+  return v === "direct" || v === "interpret" || v === "both";
+}
+
 // The combined language reality across every metro the institution serves.
 export function localAggregate(a: Phase0Answers): Aggregate {
   return aggregateLanguages(footprintSlugs(a));
@@ -314,6 +323,7 @@ export const SECTIONS: Phase0Section[] = [
   { id: "serve", title: "Who you serve" },
   { id: "evaluate", title: "How you hire and evaluate" },
   { id: "agencies", title: "The interpreting service you use" },
+  { id: "bilingual", title: "Bilingual staff who speak with patients" },
 ];
 
 export const QUESTIONS: Phase0Question[] = [
@@ -1089,6 +1099,139 @@ export const QUESTIONS: Phase0Question[] = [
     whyItMatters:
       "The real process, in your words, often shows how fast and how reliably an outside interpreter actually reaches the bedside.",
     placeholder: "Who places the request, how the interpreter joins, in person or by phone or video.",
+    maxLength: 2000,
+  },
+
+  // -- Section: Bilingual staff who speak with patients ----------------------
+  // Pathway I: employees who are not interpreters but use a non-English language
+  // with patients, by speaking with them directly or by stepping in to
+  // interpret. The start intro promises the standard covers bilingual staff and
+  // makes explicit where their role should stop; this section delivers on that.
+  // The lead (intro + role) shows whenever spoken languages are named; the detail
+  // follows when bilingual staff are actually used (hasBilingualStaff).
+  {
+    id: "bilingual.intro",
+    section: "bilingual",
+    type: "info",
+    prompt: "The staff who speak a patient's language",
+    showIf: (a) => hasSpokenLanguages(a),
+    dynamicContent: (_a, ctx) => ({
+      heading: "The staff who speak a patient's language",
+      intro: `Beyond interpreters, ${ctx.orgName} almost certainly has nurses, front-desk staff, and others who speak a second language and use it with patients. They are part of your standard too.`,
+      blocks: [
+        {
+          kind: "paragraph",
+          text: "There are two very different things a bilingual employee can do. They can speak with a patient directly in that patient's language, the way any provider speaks with any patient. Or they can interpret, carrying another clinician's words back and forth. Interpreting is a separate skill, and it is where informal help most often goes wrong.",
+        },
+        {
+          kind: "note",
+          text: "Speaking a language at home is not the same as handling a clinical conversation in it. A few questions here let us set where a bilingual staff member's role should stop, and a qualified interpreter should begin.",
+        },
+      ],
+    }),
+  },
+  {
+    id: "bilingual.role",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasSpokenLanguages(a),
+    prompt: "How do bilingual staff use their languages with patients today?",
+    help: "Think of staff whose main job is not interpreting, like a bilingual nurse or receptionist.",
+    whyItMatters:
+      "This is the line your standard has to draw. Speaking with a patient directly and interpreting for someone else are different skills, and we set a different bar for each.",
+    options: [
+      {
+        value: "direct",
+        label: "They speak with patients directly in the patient's language",
+      },
+      {
+        value: "interpret",
+        label: "They step in to interpret between a provider and a patient",
+      },
+      { value: "both", label: "Both, depending on the situation" },
+      {
+        value: "none",
+        label: "They do not; only interpreters use other languages with patients",
+      },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "bilingual.languages",
+    section: "bilingual",
+    type: "multi_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a) && spokenLanguages(a).length > 1,
+    dynamicOptions: (a) =>
+      spokenLanguages(a).map((name) => ({ value: name, label: name })),
+    prompt: "Which languages do your bilingual staff use with patients?",
+    help: "Pick the languages where staff who are not interpreters speak with patients.",
+    whyItMatters:
+      "These are the languages where your standard has to account for direct staff communication, not just interpreting.",
+  },
+  {
+    id: "bilingual.proficiency",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "Has anyone confirmed these staff speak the language well enough for patient care?",
+    whyItMatters:
+      "A staff member who is comfortable chatting may still miss a dosage or a symptom under pressure. Whether their language has been checked is exactly what a proficiency assessment settles.",
+    options: [
+      { value: "tested", label: "Yes, with a formal language proficiency test" },
+      { value: "informal", label: "Informally, by a manager or colleague" },
+      { value: "selfreport", label: "We rely on their own word that they are fluent" },
+      { value: "no", label: "No, it has not been checked" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "bilingual.boundary",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "Is there a clear line for when staff must bring in a qualified interpreter instead?",
+    help: "For example, consent, a new diagnosis, or anything high-stakes.",
+    whyItMatters:
+      "Where a bilingual staff member's role should stop is one of the things this standard makes explicit. Without a line, the hardest conversations are the ones most likely to go uninterpreted.",
+    options: [
+      { value: "clear", label: "Yes, and staff know where it is" },
+      { value: "informal", label: "Roughly, but it is not written down" },
+      { value: "no", label: "No, it is decided in the moment" },
+      { value: "unsure", label: "I am not sure" },
+    ],
+  },
+  {
+    id: "bilingual.assess",
+    section: "bilingual",
+    type: "single_select",
+    required: true,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "Would you like AALB to assess your bilingual staff's language proficiency?",
+    help: "This is a separate track from interpreter assessment, focused on safe direct communication.",
+    whyItMatters:
+      "It tells us whether to build your standard for your bilingual staff as well as your interpreters, so everyone who speaks with patients is held to a known bar.",
+    options: [
+      { value: "yes", label: "Yes, include them in our standard" },
+      { value: "maybe", label: "Maybe, we would like to know more" },
+      { value: "no", label: "No, just our interpreters for now" },
+    ],
+  },
+  {
+    id: "bilingual.process",
+    section: "bilingual",
+    type: "long_text",
+    reflective: true,
+    required: false,
+    showIf: (a) => hasBilingualStaff(a),
+    prompt: "When a bilingual staff member helps a patient in another language, what does that usually look like?",
+    help: "A few sentences is plenty.",
+    whyItMatters:
+      "The everyday reality, in your words, shows us how often direct communication and informal interpreting actually happen.",
+    placeholder: "Who steps in, for what kinds of visits, and when they would call an interpreter instead.",
     maxLength: 2000,
   },
 ];

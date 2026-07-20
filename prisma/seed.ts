@@ -192,6 +192,197 @@ async function main() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Sample hiring pipeline: Skills Lab Leader, three rounds.
+  //   Round 1  Screening        self-paced, quick, optional video intro
+  //   Round 2  Competency        self-paced, a recorded answer to each question
+  //   Round 3  Live skills session  in-person in Mexico City (booked from invite)
+  //
+  // Seeded idempotently (upsert by slug) so a redeploy refreshes the content
+  // without duplicating rounds. The pipeline helpers (firstRoundForJob /
+  // nextRoundForJob) advance a candidate through them by ascending `round`.
+  // ---------------------------------------------------------------------------
+  const skillsLabJob = await prisma.job.findFirst({
+    where: { title: "Skills Lab Leader" },
+  });
+  if (skillsLabJob) {
+    const rounds = [
+      {
+        slug: "skills-lab-leader-round-1",
+        title: "Skills Lab Leader — Screening",
+        round: 1,
+        format: "self_paced",
+        videoRequired: false,
+        liveConfig: null as Record<string, string> | null,
+        intro:
+          "Welcome! This is a short screening for the Skills Lab Leader role — a few quick questions and an optional 60-second video intro. It takes about five minutes and there are no wrong answers; we just want to get to know you.",
+        config: { captureMode: "per_question", maxSubmissions: 1 },
+        questions: [
+          {
+            id: "q1",
+            type: "text",
+            prompt: "In a sentence or two, why do you want to lead AALB's Skills Lab?",
+            required: true,
+          },
+          {
+            id: "q2",
+            type: "multiple_choice",
+            prompt:
+              "How many years have you designed or facilitated training / skills sessions?",
+            options: ["Less than 1 year", "1–3 years", "3–5 years", "5+ years"],
+            required: true,
+          },
+          {
+            id: "q3",
+            type: "multiple_choice",
+            prompt: "How would you describe your Spanish and English fluency?",
+            options: [
+              "Fluent in both",
+              "Fluent in one, conversational in the other",
+              "Conversational in both",
+            ],
+            required: true,
+          },
+          {
+            id: "q4",
+            type: "video",
+            prompt:
+              "Record a 60-second introduction — who you are and one thing you love teaching.",
+            required: false,
+            maxDurationSec: 90,
+            maxTakes: 3,
+            prepTimeSec: 15,
+            allowReview: true,
+          },
+        ],
+      },
+      {
+        slug: "skills-lab-leader-round-2",
+        title: "Skills Lab Leader — Competency Interview",
+        round: 2,
+        format: "self_paced",
+        videoRequired: true,
+        liveConfig: null as Record<string, string> | null,
+        intro:
+          "You've advanced to the competency interview. Please record a short video answer to each of the five questions below. You can prepare briefly and re-record within the limits shown — aim for two to three minutes per answer.",
+        config: { captureMode: "per_question", maxSubmissions: 1 },
+        questions: [
+          {
+            id: "q1",
+            type: "video",
+            prompt:
+              "Walk us through a training session you designed and ran. What were the learning outcomes and how did you measure them?",
+            required: true,
+            maxDurationSec: 180,
+            maxTakes: 2,
+            prepTimeSec: 30,
+            allowReview: true,
+          },
+          {
+            id: "q2",
+            type: "video",
+            prompt:
+              "Describe a time you had to adapt a session in real time because participants weren't engaging. What did you do?",
+            required: true,
+            maxDurationSec: 180,
+            maxTakes: 2,
+            prepTimeSec: 30,
+            allowReview: true,
+          },
+          {
+            id: "q3",
+            type: "video",
+            prompt:
+              "How do you measure whether a Skills Lab participant has actually built competency vs. just completed the activities?",
+            required: true,
+            maxDurationSec: 180,
+            maxTakes: 2,
+            prepTimeSec: 30,
+            allowReview: true,
+          },
+          {
+            id: "q4",
+            type: "video",
+            prompt:
+              "Tell us about a challenging participant you worked with and how you handled it.",
+            required: true,
+            maxDurationSec: 180,
+            maxTakes: 2,
+            prepTimeSec: 30,
+            allowReview: true,
+          },
+          {
+            id: "q5",
+            type: "video",
+            prompt: "Why this role at AALB specifically?",
+            required: true,
+            maxDurationSec: 180,
+            maxTakes: 2,
+            prepTimeSec: 30,
+            allowReview: true,
+          },
+        ],
+      },
+      {
+        slug: "skills-lab-leader-round-3",
+        title: "Skills Lab Leader — Live Skills Session",
+        round: 3,
+        format: "live",
+        videoRequired: false,
+        liveConfig: {
+          location: "Mexico City",
+          timezone: "America/Mexico_City",
+          bookingSlug: "mexico-city-skills-lab",
+        },
+        intro:
+          "Congratulations on reaching the final round — a live skills session in Mexico City. Use the link in your invitation to book a time. Below, tell us anything we should prepare for and what you'll demonstrate.",
+        config: { captureMode: "per_question", maxSubmissions: 1 },
+        questions: [
+          {
+            id: "q1",
+            type: "text",
+            prompt:
+              "Anything we should know before your in-person session? (accessibility needs, travel constraints, timing)",
+            required: false,
+          },
+          {
+            id: "q2",
+            type: "text",
+            prompt:
+              "Briefly, what will you focus on in your live 20-minute skills demonstration?",
+            required: true,
+          },
+        ],
+      },
+    ];
+
+    for (const r of rounds) {
+      const data = {
+        title: r.title,
+        round: r.round,
+        format: r.format,
+        roleTitle: "Skills Lab Leader",
+        intro: r.intro,
+        videoRequired: r.videoRequired,
+        questions: r.questions,
+        config: r.config,
+        liveConfig: r.liveConfig ?? undefined,
+        isActive: true,
+        jobId: skillsLabJob.id,
+      };
+      await prisma.interviewTemplate.upsert({
+        where: { slug: r.slug },
+        update: data,
+        create: { slug: r.slug, ...data },
+      });
+    }
+    console.log(
+      `Seeded Skills Lab Leader pipeline: ${rounds.length} rounds (${rounds
+        .map((r) => r.slug)
+        .join(", ")})`
+    );
+  }
+
   console.log("Database seeded successfully!");
   console.log(`Admin login: ${adminEmail}`);
 }

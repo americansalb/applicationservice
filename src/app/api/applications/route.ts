@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { jobId, firstName, lastName, email, phone, ...rest } = body;
+    const { jobId, firstName, lastName, email, phone } = body;
 
     if (!jobId || !firstName || !lastName || !email || !phone) {
       return NextResponse.json(
@@ -21,8 +21,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
+    // Allow-list applicant-editable fields only. Never spread the raw request
+    // body into prisma.create: server-controlled columns (status, timestamps)
+    // must not be settable by the client (mass-assignment). Optional fields are
+    // coerced to a trimmed string or dropped.
+    const str = (v: unknown) =>
+      typeof v === "string" && v.trim() ? v.trim() : undefined;
+
     const application = await prisma.application.create({
-      data: { jobId, firstName, lastName, email, phone, ...rest },
+      data: {
+        jobId,
+        firstName,
+        lastName,
+        email,
+        phone,
+        address: str(body.address),
+        city: str(body.city),
+        state: str(body.state),
+        zipCode: str(body.zipCode),
+        resumeText: str(body.resumeText),
+        coverLetter: str(body.coverLetter),
+        linkedIn: str(body.linkedIn),
+        portfolio: str(body.portfolio),
+        yearsExp: str(body.yearsExp),
+        startDate: str(body.startDate),
+        referral: str(body.referral),
+        legallyAuth: str(body.legallyAuth),
+        additionalInfo: str(body.additionalInfo),
+        // status intentionally omitted — defaults to "New" server-side.
+      },
     });
 
     return NextResponse.json(application, { status: 201 });
